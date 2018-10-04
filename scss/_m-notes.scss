@@ -1,0 +1,10 @@
+.m-notes {
+    border-right: 1px solid lightgray;
+    display: flex;
+    flex-flow: column;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.2);
+
+    &__title {
+        padding: 0 25px;
+    }
+}

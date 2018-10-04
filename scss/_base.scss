@@ -1,0 +1,74 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    @extend %font-family-inter-ui;
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    @extend %font-family-inter-ui;
+}
+
+// Headings
+//
+// Headings h1 to h6
+//
+// Markup:
+// <h1>Heading 1</h1>
+// <h2>Heading 2</h2>
+// <h3>Heading 3</h3>
+// <h4>Heading 4</h4>
+// <h5>Heading 5</h5>
+// <h6>Heading 6</h6>
+//
+// Styleguide Base.heading
+
+h1 {
+    font-size: 1.515em;
+    letter-spacing: -0.013em;
+}
+
+h2 {
+    font-size: 1.319em;
+    letter-spacing: -0.011em;
+}
+
+h3 {
+    font-size: 1.148em;
+    letter-spacing: -0.008em;
+}
+
+h4 {
+    font-size: 1em;
+    letter-spacing: -0.004em;
+}
+
+h5 {
+    font-size: 0.87em;
+    letter-spacing: 0.001em;
+}
+
+h6 {
+    font-size: 0.757em;
+    letter-spacing: 0.008em;
+}
+
+// Paragraph
+//
+// Markup:
+// <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras feugiat hendrerit ultrices.
+// Morbi ipsum leo, tempus ut aliquam et, consectetur non ipsum. Proin vel augue velit.<br>
+// Mauris bibendum odio sem, ac luctus turpis tincidunt a. In eleifend mollis nisi, in suscipit
+// nunc posuere ut. Pellentesque vulputate est vel tristique dignissim. Sed bibendum auctor rutrum.</p>
+//
+// Styleguide Base.paragraph
+
+p {
+    @extend %font-family-inter-ui;
+    font-size: 0.87em;
+    letter-spacing: 0.008em;
+    line-height: 1.4;
+}

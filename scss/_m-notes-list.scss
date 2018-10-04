@@ -1,0 +1,15 @@
+.m-notes-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    flex-grow: 1;
+    overflow-y: auto;
+
+    &__item {
+        border-bottom: 1px solid $note-border-color;
+
+        &:first-child {
+            border-top: 1px solid $note-border-color;
+        }
+    }
+}

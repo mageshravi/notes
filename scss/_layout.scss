@@ -1,0 +1,34 @@
+.l-wrapper {
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+}
+
+.l-folders {
+    width: 100vw;
+    background: url('/static/images/debut_dark.png');  // TODO: retina screens @2X
+    background-repeat: repeat;
+    flex-shrink: 0;
+
+    @media (min-width: 768px) {
+        width: 200px;
+    }
+}
+.l-notes {
+    width: 100vw;
+    background: url('/static/images/creampaper.png');    // TODO: retina screens @2X
+    flex-shrink: 0;
+
+    @media (min-width: 768px) {
+        width: 350px;
+    }
+}
+.l-note-detail {
+    width: 100vw;
+    background: url('/static/images/creampaper.png');    // TODO: retina screens @2X
+    flex-shrink: 0;
+
+    @media (min-width: 768px) {
+        flex-shrink: 1;
+    }
+}

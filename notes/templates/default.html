@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Notes</title>
+</head>
+<body>
+    <div class="l-wrapper" id="notes-app">
+        <div class="l-folders m-folders">
+            <h2 class="m-folders__title">Folders</h2>
+            <ul class="m-folders-list">
+                {% comment %}
+                {% for folder in folders %}
+                    <li class="m-folders-list__item">{{ folder.name }}</li>
+                {% endfor %}
+                {% endcomment %}
+                <folders-item
+                    v-for="folder in foldersList"
+                    v-bind:folder="folder"
+                    v-bind:key="folder.id">
+                </folders-item>
+            </ul>
+
+            <h2 class="m-folders__title">Tags</h2>
+            <ul class="m-folders-list m-folders-list--tags">
+                {% comment %} 
+                {% for tag in tags %}
+                    <li class="m-folders-list__item">{{ tag.handle }}</li>
+                {% endfor %}
+                {% endcomment %}
+                <tags-item
+                    v-for="tag in tagsList"
+                    v-bind:tag="tag"
+                    v-bind:key="tag.id">
+                </tags-item>
+            </ul>
+        </div>
+        <div class="l-notes m-notes">
+            {% verbatim %}
+            <h2 class="m-notes__title">{{ selectedFolder }}</h2>
+            {% endverbatim %}
+            <ul class="m-notes-list">
+                {% comment %}
+                {% for note in notes %}
+                    <li class="m-notes-list__item">
+                        <div class="m-note">
+                            <p class="m-note__title">{{ note.title }}</p>
+                            <p class="m-note__updated">{{ note.updated_at }}</p>
+                        </div>
+                    </li>
+                {% endfor %}
+                {% endcomment %}
+                <notes-item
+                    v-for="note in notesList"
+                    v-bind:note="note"
+                    v-bind:key="note.id">
+                </notes-item>
+            </ul>
+        </div>
+        <div class="l-note-detail">
+            <div class="m-note-detail">
+                <h1>{{ note.title }}</h1>
+                {% for tag in note.tags.all %}
+                    {{ tag.handle }}
+                {% endfor %}
+                <hr>
+                {{ note.content|safe }}
+            </div>
+        </div>
+    </div>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <!-- development version, includes helpful console warnings -->
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <!-- production version, optimized for size and speed -->
+    {% comment %} <script src="https://cdn.jsdelivr.net/npm/vue"></script> {% endcomment %}
+
+    <script src="{% static 'js/app.min.js' %}"></script>
+
+    <link rel="stylesheet" href="{% static 'ckeditor/ckeditor/plugins/codesnippet/lib/highlight/styles/solarized_dark.css' %}">
+    <script src="{% static 'ckeditor/ckeditor/plugins/codesnippet/lib/highlight/highlight.pack.js' %}"></script>
+    <script>
+        hljs.initHighlightingOnLoad();
+    </script>
+</body>
+</html>
