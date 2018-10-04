@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "cli-error-notifier": "^2.0.1",
-    "vue": "^2.5.17"
+    "vue": "^2.5.17",
+    "vue-resource": "^1.5.1"
   }
 }

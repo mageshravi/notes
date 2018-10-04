@@ -73,11 +73,8 @@
     </div>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 
-    <!-- development version, includes helpful console warnings -->
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-    <!-- production version, optimized for size and speed -->
-    {% comment %} <script src="https://cdn.jsdelivr.net/npm/vue"></script> {% endcomment %}
-
+    <script src="{% static 'lib/vue.min.js' %}"></script>
+    <script src="{% static 'lib/vue-resource.min.js' %}"></script>
     <script src="{% static 'js/app.min.js' %}"></script>
 
     <link rel="stylesheet" href="{% static 'ckeditor/ckeditor/plugins/codesnippet/lib/highlight/styles/solarized_dark.css' %}">
