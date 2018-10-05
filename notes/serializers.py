@@ -30,14 +30,21 @@ class NoteSerializer(object):
         return {
             'id': note.id,
             'title': note.title,
+            'slug': note.slug,
             'updated_at': note.updated_at
         }
 
     def serialize_full(self, note: Note):
 
+        tag_serializer = TagSerializer()
+        folder_serializer = FolderSerializer()
+
         return {
             'id': note.id,
             'title': note.title,
+            'slug': note.slug,
             'content': note.content,
-            'updated_at': note.updated_at
+            'updated_at': note.updated_at,
+            'tags': [tag_serializer.serialize(tag) for tag in note.tags.all()],
+            'folder': folder_serializer.serialize(note.folder)
         }

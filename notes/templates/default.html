@@ -20,7 +20,9 @@
                 <folders-item
                     v-for="folder in foldersList"
                     v-bind:folder="folder"
-                    v-bind:key="folder.id">
+                    v-bind:selected-folder="selectedFolder"
+                    v-bind:key="folder.id"
+                    v-on:folder-change="folderChangeHandler">
                 </folders-item>
             </ul>
 
@@ -56,19 +58,14 @@
                 <notes-item
                     v-for="note in notesList"
                     v-bind:note="note"
-                    v-bind:key="note.id">
+                    v-bind:selected-note="selectedNote"
+                    v-bind:key="note.id"
+                    v-on:note-change="noteChangeHandler">
                 </notes-item>
             </ul>
         </div>
         <div class="l-note-detail">
-            <div class="m-note-detail">
-                <h1>{{ note.title }}</h1>
-                {% for tag in note.tags.all %}
-                    {{ tag.handle }}
-                {% endfor %}
-                <hr>
-                {{ note.content|safe }}
-            </div>
+            <note-detail v-bind:note="noteDetail"></note-detail>
         </div>
     </div>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">

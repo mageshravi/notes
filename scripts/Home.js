@@ -1,9 +1,16 @@
 "use strict";
 
 /* global Vue */
+
+/* global hljs */
 Vue.component('folders-item', {
-  props: ['folder'],
-  template: "<li class=\"m-folders-list__item\">\n    <a class=\"m-folders-list__link\" \n      v-bind:href=\"'#/folders/' + folder.name\"\n      v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
+  props: ['folder', 'selectedFolder'],
+  template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\" \n      v-bind:href=\"'#/folders/' + folder.name\"\n      v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
+  computed: {
+    isActive: function isActive() {
+      return this.folder.name === this.selectedFolder;
+    }
+  },
   methods: {
     selectFolder: function selectFolder(event) {
       var cssClassNames = {
@@ -13,21 +20,50 @@ Vue.component('folders-item', {
       document.querySelectorAll(".".concat(cssClassNames.foldersListItem)).forEach(function (el) {
         el.classList.remove(cssClassNames.isActive);
       });
-      event.target.parentNode.classList.add(cssClassNames.isActive); // TODO: emit event to refresh notes
+      event.target.parentNode.classList.add(cssClassNames.isActive); // tell parent to refresh notes
+
+      this.$emit('folder-change', event.target.innerText);
     }
   }
 });
 Vue.component('tags-item', {
   props: ['tag'],
-  template: "<li class=\"m-folders-list__item\">\n    <a class=\"m-folders-list__link\" v-bind:href=\"'#/tags/' + tag.handle\">{{ tag.handle }}</a>\n  </li>"
-});
-Vue.component('note', {
-  props: ['note'],
-  template: "<div class=\"m-note\">\n    <p class=\"m-note__title\">{{ note.title }}</p>\n    <p class=\"m-note__updated\">{{ note.updated_at }}</p>\n  </div>"
+  template: "\n  <li class=\"m-folders-list__item\">\n    <a class=\"m-folders-list__link\" v-bind:href=\"'#/tags/' + tag.handle\">{{ tag.handle }}</a>\n  </li>"
 });
 Vue.component('notes-item', {
+  props: ['note', 'selectedNote'],
+  template: "\n  <li class=\"m-notes-list__item\">\n    <div class=\"m-note\"\n        v-bind:slug=\"note.slug\"\n        v-bind:class=\"{'is-active': isActive}\"\n        v-on:click=\"selectNote\">\n      <p class=\"m-note__title\">{{ note.title }}</p>\n      <p class=\"m-note__updated\">{{ note.updated_at }}</p>\n    </div>\n  </li>",
+  computed: {
+    isActive: function isActive() {
+      return this.note.slug === this.selectedNote;
+    }
+  },
+  methods: {
+    selectNote: function selectNote(event) {
+      var cssClassNames = {
+        note: 'm-note',
+        isActive: 'is-active'
+      };
+      var curNote = event.currentTarget;
+      document.querySelectorAll(".".concat(cssClassNames.note)).forEach(function (el) {
+        el.classList.remove(cssClassNames.isActive);
+      });
+      curNote.classList.add(cssClassNames.isActive);
+      var slug = curNote.getAttribute('slug');
+      window.location.hash = "#/".concat(slug); // tell parent to refresh note-detail
+
+      this.$emit('note-change', slug);
+    }
+  }
+});
+Vue.component('note-detail', {
   props: ['note'],
-  template: "<li class=\"m-notes-list__item\">\n    <note v-bind:note=\"note\"></note>\n  </li>"
+  template: "\n  <div class=\"m-note-detail\" v-if=\"note\">\n      <h1>{{ note.title }}</h1>\n      <span v-for=\"tag in note.tags\"\n            v-bind:tag=\"tag\"\n            v-bind:key=\"tag.id\">\n          {{ tag.handle }}\n      </span>\n      <hr>\n      <div v-html=\"note.content\"></div>\n  </div>",
+  updated: function updated() {
+    document.querySelectorAll('.m-note-detail pre code').forEach(function (el) {
+      hljs.highlightBlock(el);
+    });
+  }
 });
 var notesApp = new Vue({
   // eslint-disable-line no-unused-vars
@@ -35,12 +71,10 @@ var notesApp = new Vue({
   data: {
     foldersList: [],
     tagsList: [],
-    selectedFolder: 'Default',
-    notesList: [{
-      id: 1,
-      title: 'Hello World',
-      updated_at: 'Oct. 4, 2018, 10:39 a.m.'
-    }]
+    notesList: [],
+    noteDetail: false,
+    selectedFolder: false,
+    selectedNote: false
   },
   methods: {
     refreshFolders: function refreshFolders(resource) {
@@ -57,12 +91,90 @@ var notesApp = new Vue({
         _this2.tagsList = response.data;
       });
     },
-    selectFolder: function selectFolder(resource) {
-      console.log(this, resource);
+    refreshNotes: function refreshNotes(folderName) {
+      var _this3 = this;
+
+      folderName = encodeURIComponent(folderName);
+      this.$http.get("/folders/".concat(folderName)).then(function (response) {
+        _this3.notesList = response.data;
+      });
+    },
+    folderChangeHandler: function folderChangeHandler(folderName) {
+      this.selectedFolder = folderName;
+      this.selectedNote = false;
+      this.noteDetail = false;
+      this.refreshNotes(folderName);
+    },
+    noteChangeHandler: function noteChangeHandler(noteSlug) {
+      var _this4 = this;
+
+      this.$http.get("/notes/".concat(noteSlug)).then(function (response) {
+        _this4.noteDetail = response.data;
+      });
+    },
+    init: function init() {
+      var _this5 = this;
+
+      this.refreshFolders();
+      this.refreshTags();
+
+      if (!window.location.hash) {
+        // no hash provided = home page
+        this.$http.get('/folders').then(function (response) {
+          _this5.foldersList = response.data;
+
+          if (!_this5.foldersList.length) {
+            return;
+          } // get notes in first folder
+
+
+          var folderName = _this5.foldersList[0].name;
+
+          _this5.$http.get("/folders/".concat(folderName)).then(function (response) {
+            _this5.notesList = response.data;
+
+            if (_this5.notesList.length) {
+              // get the first note
+              _this5.noteChangeHandler(_this5.notesList[0].slug);
+            }
+          });
+        });
+        return;
+      }
+
+      var foldersPattern = /^#\/folders\/([^/]+)\/?$/;
+      var foldersMatch = window.location.hash.match(foldersPattern);
+
+      if (foldersMatch) {
+        var folderName = foldersMatch[1];
+        this.folderChangeHandler(folderName);
+        return;
+      }
+
+      var notePattern = /^#\/([^/]+)\/?$/;
+      var noteMatch = window.location.hash.match(notePattern);
+
+      if (noteMatch) {
+        var noteSlug = noteMatch[1]; // fetch note-detail
+
+        this.$http.get("/notes/".concat(noteSlug)).then(function (response) {
+          _this5.noteDetail = response.data;
+          _this5.selectedNote = _this5.noteDetail.slug;
+          var folderName = _this5.noteDetail.folder.name;
+          _this5.selectedFolder = folderName; // fetch other notes in same folder
+
+          _this5.$http.get("/folders/".concat(folderName)).then(function (response) {
+            _this5.notesList = response.data;
+          });
+        });
+      }
     }
   },
   beforeMount: function beforeMount() {
-    this.refreshFolders();
-    this.refreshTags();
+    this.init();
   }
 });
+
+window.onhashchange = function (ev) {
+  notesApp.init();
+};

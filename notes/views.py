@@ -60,3 +60,11 @@ class NotesInFolder(View):
         serializer = NoteSerializer()
         result = [serializer.serialize_minimal(note) for note in notes]
         return JsonResponse(result, safe=False)
+
+
+class NoteDetail(View):
+
+    def get(self, request, note_slug):
+        note = get_object_or_404(Note, slug=note_slug)
+        serializer = NoteSerializer()
+        return JsonResponse(serializer.serialize_full(note))

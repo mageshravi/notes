@@ -20,6 +20,7 @@ class Tag(models.Model):
 
 class Note(models.Model):
     title = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
     content = RichTextField(extra_plugins=['codesnippet'])
     tags = models.ManyToManyField(Tag, related_name='notes')
     folder = models.ForeignKey(Folder, on_delete=models.CASCADE, default=1)
