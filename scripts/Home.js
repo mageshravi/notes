@@ -112,6 +112,25 @@ var notesApp = new Vue({
         _this4.noteDetail = response.data;
       });
     },
+    slideToMobileFocusArea: function slideToMobileFocusArea(area) {
+      if (window.innerWidth > 768) {
+        return;
+      }
+
+      switch (area) {
+        case 'folders-list':
+          document.querySelector('.l-wrapper').style.marginLeft = 0;
+          break;
+
+        case 'notes-list':
+          document.querySelector('.l-wrapper').style.marginLeft = '-100vw';
+          break;
+
+        case 'note-detail':
+          document.querySelector('.l-wrapper').style.marginLeft = '-200vw';
+          break;
+      }
+    },
     init: function init() {
       var _this5 = this;
 
@@ -129,14 +148,20 @@ var notesApp = new Vue({
 
 
           var folderName = _this5.foldersList[0].name;
+          _this5.selectedFolder = folderName;
 
           _this5.$http.get("/folders/".concat(folderName)).then(function (response) {
             _this5.notesList = response.data;
 
             if (_this5.notesList.length) {
               // get the first note
-              _this5.noteChangeHandler(_this5.notesList[0].slug);
+              var firstNoteSlug = _this5.notesList[0].slug;
+              _this5.selectedNote = firstNoteSlug;
+
+              _this5.noteChangeHandler(firstNoteSlug);
             }
+
+            _this5.slideToMobileFocusArea('folders-list');
           });
         });
         return;
@@ -148,6 +173,7 @@ var notesApp = new Vue({
       if (foldersMatch) {
         var folderName = foldersMatch[1];
         this.folderChangeHandler(folderName);
+        this.slideToMobileFocusArea('notes-list');
         return;
       }
 
@@ -165,6 +191,8 @@ var notesApp = new Vue({
 
           _this5.$http.get("/folders/".concat(folderName)).then(function (response) {
             _this5.notesList = response.data;
+
+            _this5.slideToMobileFocusArea('note-detail');
           });
         });
       }

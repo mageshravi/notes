@@ -145,6 +145,25 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         this.noteDetail = response.data
       })
     },
+    slideToMobileFocusArea (area) {
+      if (window.innerWidth > 768) {
+        return
+      }
+
+      switch (area) {
+        case 'folders-list':
+          document.querySelector('.l-wrapper').style.marginLeft = 0
+          break
+
+        case 'notes-list':
+          document.querySelector('.l-wrapper').style.marginLeft = '-100vw'
+          break
+
+        case 'note-detail':
+          document.querySelector('.l-wrapper').style.marginLeft = '-200vw'
+          break
+      }
+    },
     init () {
       this.refreshFolders()
       this.refreshTags()
@@ -161,12 +180,17 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
 
           // get notes in first folder
           let folderName = this.foldersList[0].name
+          this.selectedFolder = folderName
           this.$http.get(`/folders/${folderName}`).then((response) => {
             this.notesList = response.data
             if (this.notesList.length) {
               // get the first note
-              this.noteChangeHandler(this.notesList[0].slug)
+              let firstNoteSlug = this.notesList[0].slug
+              this.selectedNote = firstNoteSlug
+              this.noteChangeHandler(firstNoteSlug)
             }
+
+            this.slideToMobileFocusArea('folders-list')
           })
         })
 
@@ -178,6 +202,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       if (foldersMatch) {
         let folderName = foldersMatch[1]
         this.folderChangeHandler(folderName)
+        this.slideToMobileFocusArea('notes-list')
         return
       }
 
@@ -196,6 +221,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
           // fetch other notes in same folder
           this.$http.get(`/folders/${folderName}`).then((response) => {
             this.notesList = response.data
+            this.slideToMobileFocusArea('note-detail')
           })
         })
       }
