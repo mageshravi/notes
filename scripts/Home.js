@@ -113,21 +113,25 @@ var notesApp = new Vue({
       });
     },
     slideToMobileFocusArea: function slideToMobileFocusArea(area) {
-      if (window.innerWidth > 768) {
-        return;
-      }
+      var wrapperEl = document.querySelector('.l-wrapper');
 
       switch (area) {
         case 'folders-list':
-          document.querySelector('.l-wrapper').style.marginLeft = 0;
+          wrapperEl.classList.add('folders-visible');
+          wrapperEl.classList.remove('notes-list-visible');
+          wrapperEl.classList.remove('note-detail-visible');
           break;
 
         case 'notes-list':
-          document.querySelector('.l-wrapper').style.marginLeft = '-100vw';
+          wrapperEl.classList.remove('folders-visible');
+          wrapperEl.classList.add('notes-list-visible');
+          wrapperEl.classList.remove('note-detail-visible');
           break;
 
         case 'note-detail':
-          document.querySelector('.l-wrapper').style.marginLeft = '-200vw';
+          wrapperEl.classList.remove('folders-visible');
+          wrapperEl.classList.remove('notes-list-visible');
+          wrapperEl.classList.add('note-detail-visible');
           break;
       }
     },

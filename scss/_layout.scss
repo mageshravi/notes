@@ -2,6 +2,24 @@
     min-height: 100vh;
     display: flex;
     overflow-x: hidden;
+    transition: margin-left .25s linear;
+
+    @media (max-width: 767px) {
+        &.folders-visible {
+            margin-left: 0;
+            transition: margin-left .25s linear;
+        }
+
+        &.notes-list-visible {
+            margin-left: -100vw;
+            transition: margin-left .25s linear;
+        }
+
+        &.note-detail-visible {
+            margin-left: -200vw;
+            transition: margin-left .25s linear;
+        }
+    }
 }
 
 .l-folders {

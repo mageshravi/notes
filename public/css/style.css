@@ -47,7 +47,18 @@ p {
   min-height: 100vh;
   display: -ms-flexbox;
   display: flex;
-  overflow-x: hidden; }
+  overflow-x: hidden;
+  transition: margin-left .25s linear; }
+  @media (max-width: 767px) {
+    .l-wrapper.folders-visible {
+      margin-left: 0;
+      transition: margin-left .25s linear; }
+    .l-wrapper.notes-list-visible {
+      margin-left: -100vw;
+      transition: margin-left .25s linear; }
+    .l-wrapper.note-detail-visible {
+      margin-left: -200vw;
+      transition: margin-left .25s linear; } }
 
 .l-folders {
   width: 100vw;
