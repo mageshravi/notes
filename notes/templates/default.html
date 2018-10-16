@@ -11,12 +11,7 @@
     <div class="l-wrapper" id="notes-app">
         <div class="l-folders m-folders">
             <h2 class="m-folders__title">Folders</h2>
-            <ul class="m-folders-list">
-                {% comment %}
-                {% for folder in folders %}
-                    <li class="m-folders-list__item">{{ folder.name }}</li>
-                {% endfor %}
-                {% endcomment %}
+            <ul class="m-folders-list" v-if="notEmptyFoldersList">
                 <folders-item
                     v-for="folder in foldersList"
                     v-bind:folder="folder"
@@ -25,36 +20,31 @@
                     v-on:folder-change="folderChangeHandler">
                 </folders-item>
             </ul>
+            <ul class="m-folders-list" v-else>
+                <li class="m-folders-list__item is-disabled">
+                    <span class="m-folders-list__link">No folders</span>
+                </li>
+            </ul>
 
             <h2 class="m-folders__title">Tags</h2>
-            <ul class="m-folders-list m-folders-list--tags">
-                {% comment %} 
-                {% for tag in tags %}
-                    <li class="m-folders-list__item">{{ tag.handle }}</li>
-                {% endfor %}
-                {% endcomment %}
+            <ul class="m-folders-list m-folders-list--tags" v-if="notEmptyTagsList">
                 <tags-item
                     v-for="tag in tagsList"
                     v-bind:tag="tag"
                     v-bind:key="tag.id">
                 </tags-item>
             </ul>
+            <ul class="m-folders-list m-folders-list--tags" v-else>
+                <li class="m-folders-list__item is-disabled">
+                    <span class="m-folders-list__link">No tags</span>
+                </li>
+            </ul>
         </div>
         <div class="l-notes m-notes">
             {% verbatim %}
-            <h2 class="m-notes__title">{{ selectedFolder }}</h2>
+            <h2 class="m-notes__title" v-if="selectedFolder">{{ selectedFolder }}</h2>
             {% endverbatim %}
             <ul class="m-notes-list">
-                {% comment %}
-                {% for note in notes %}
-                    <li class="m-notes-list__item">
-                        <div class="m-note">
-                            <p class="m-note__title">{{ note.title }}</p>
-                            <p class="m-note__updated">{{ note.updated_at }}</p>
-                        </div>
-                    </li>
-                {% endfor %}
-                {% endcomment %}
                 <notes-item
                     v-for="note in notesList"
                     v-bind:note="note"

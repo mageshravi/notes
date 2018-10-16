@@ -117,6 +117,14 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     selectedFolder: false,
     selectedNote: false
   },
+  computed: {
+    notEmptyFoldersList: function () {
+      return Boolean(this.foldersList.length)
+    },
+    notEmptyTagsList: function () {
+      return Boolean(this.tagsList.length)
+    }
+  },
   methods: {
     refreshFolders (resource) {
       this.$http.get('/folders').then((response) => {

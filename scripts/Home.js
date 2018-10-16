@@ -76,6 +76,14 @@ var notesApp = new Vue({
     selectedFolder: false,
     selectedNote: false
   },
+  computed: {
+    notEmptyFoldersList: function notEmptyFoldersList() {
+      return Boolean(this.foldersList.length);
+    },
+    notEmptyTagsList: function notEmptyTagsList() {
+      return Boolean(this.tagsList.length);
+    }
+  },
   methods: {
     refreshFolders: function refreshFolders(resource) {
       var _this = this;
