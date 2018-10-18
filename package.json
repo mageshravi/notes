@@ -11,23 +11,25 @@
     "uglify": "onerror 'uglifyjs scripts/*.js -m -c -o static/js/app.min.js' --title 'Error uglifying JS' --icon error",
     "build:css": "npm run scss && npm run autoprefixer",
     "build:js": "npm run lint && npm run compile && npm run uglify",
+    "build:lib": "bash/npm-build_lib.sh",
     "watch:css": "onchange 'scss/*.scss' -- npm run build:css",
     "watch:js": "onchange 'scripts/*.js' 'scripts-es6/*.es' -- npm run build:js",
     "watch:all": "parallelshell 'npm run watch:css' 'npm run watch:js'",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "scss:dev": "onerror 'node-sass -o public/css/ scss/' --title 'Error compiling SCSS' --icon error",
-    "autoprefixer:dev": "postcss -u autoprefixer -r public/css/*.css",
-    "uglify:dev": "onerror 'uglifyjs scripts/*.js -o public/js/app.min.js' --title 'Error uglifying JS' --icon error",
-    "build:css:dev": "npm run scss:dev && npm run autoprefixer:dev",
+
+    "scss:dev": "onerror 'node-sass -o static/css/ scss/' --title 'Error compiling SCSS' --icon error",
+    "uglify:dev": "onerror 'uglifyjs scripts/*.js -o static/js/app.min.js' --title 'Error uglifying JS' --icon error",
+    "build:css:dev": "npm run scss:dev && npm run autoprefixer",
     "build:js:dev": "npm run lint && npm run compile && npm run uglify:dev",
     "watch:css:dev": "onchange 'scss/*.scss' -- npm run build:css:dev && npm run kss",
     "watch:js:dev": "onchange 'scripts/*.es' -- npm run build:js:dev",
     "watch:dev": "parallelshell 'npm run watch:css:dev' 'npm run watch:js:dev'",
-    "kss": "kss --config kss-config.json"
+
+    "kss": "kss --config kss-config.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/mageshravi/mageshravi.com"
+    "url": "https://github.com/mageshravi/notes"
   },
   "author": "Magesh Ravi <magesh@webinative.com>",
   "license": "BSD-2-Clause",
@@ -50,6 +52,7 @@
   },
   "dependencies": {
     "cli-error-notifier": "^2.0.1",
+    "normalize.css": "^8.0.0",
     "vue": "^2.5.17",
     "vue-resource": "^1.5.1"
   }

@@ -9,7 +9,7 @@ Vue.component('folders-item', {
   template: `
   <li class="m-folders-list__item"
       v-bind:class="{'is-active': isActive}">
-    <a class="m-folders-list__link" 
+    <a class="m-folders-list__link"
       v-bind:href="'#/folders/' + folder.name"
       v-on:click="selectFolder">
       {{ folder.name }}

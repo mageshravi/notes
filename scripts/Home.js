@@ -5,7 +5,7 @@
 /* global hljs */
 Vue.component('folders-item', {
   props: ['folder', 'selectedFolder'],
-  template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\" \n      v-bind:href=\"'#/folders/' + folder.name\"\n      v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
+  template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n      v-bind:href=\"'#/folders/' + folder.name\"\n      v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
   computed: {
     isActive: function isActive() {
       return this.folder.name === this.selectedFolder;

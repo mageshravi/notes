@@ -23,9 +23,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '(+92b$yoi#s*&!oed5j+voo8jgbsxmno2o(0x^095yn^5@+dpo'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', False)
 
 ALLOWED_HOSTS = []
+ALLOWED_HOSTS_ENV = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
+if ALLOWED_HOSTS_ENV != '':
+    ALLOWED_HOSTS = ALLOWED_HOSTS_ENV.split(',')
+# endif
 
 
 # Application definition
@@ -77,8 +81,15 @@ WSGI_APPLICATION = 'django_notes.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': os.environ.get('DJANGO_DB_NAME'),
+        'USER': os.environ.get('DJANGO_DB_USER'),
+        'PASSWORD': os.environ.get('DJANGO_DB_PASSWORD'),
+        'HOST': os.environ.get('DJANGO_DB_HOST'),
+        'PORT': os.environ.get('DJANGO_DB_PORT'),
+        'TEST': {
+            'NAME': 'testDB',
+        }
     }
 }
 
@@ -123,10 +134,9 @@ STATIC_URL = '/static/'
 
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'public'),
 )
 
-# STATIC_ROOT = os.path.join(BASE_DIR, 'public')
+STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT', None)
 
 # ckeditor
 
