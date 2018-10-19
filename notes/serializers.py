@@ -45,6 +45,7 @@ class NoteSerializer(object):
             'id': note.id,
             'title': note.title,
             'slug': note.slug,
+            'url': reverse('notes:detail', kwargs={'note_slug': note.slug}),
             'updated_at': self._format_datetime(note.updated_at)
         }
 

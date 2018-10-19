@@ -12,13 +12,13 @@
         <div class="l-folders m-folders">
             <h2 class="m-folders__title">Folders</h2>
             <ul class="m-folders-list" v-if="notEmptyFoldersList">
-                <folders-item
+                <folder-item
                     v-for="folder in foldersList"
                     v-bind:folder="folder"
                     v-bind:selected-folder="selectedFolder"
                     v-bind:key="folder.id"
                     v-on:folder-change="folderChangeHandler">
-                </folders-item>
+                </folder-item>
             </ul>
             <ul class="m-folders-list" v-else>
                 <li class="m-folders-list__item is-disabled">
@@ -28,11 +28,13 @@
 
             <h2 class="m-folders__title">Tags</h2>
             <ul class="m-folders-list m-folders-list--tags" v-if="notEmptyTagsList">
-                <tags-item
+                <tags-folder-item
                     v-for="tag in tagsList"
                     v-bind:tag="tag"
-                    v-bind:key="tag.id">
-                </tags-item>
+                    v-bind:selected-tag="selectedTag"
+                    v-bind:key="tag.id"
+                    v-on:tag-change="tagChangeHandler">
+                </tags-folder-item>
             </ul>
             <ul class="m-folders-list m-folders-list--tags" v-else>
                 <li class="m-folders-list__item is-disabled">
@@ -43,6 +45,7 @@
         <div class="l-notes m-notes">
             {% verbatim %}
             <h2 class="m-notes__title" v-if="selectedFolder">{{ selectedFolder }}</h2>
+            <h2 class="m-notes__title" v-if="selectedTag">#{{ selectedTag }}</h2>
             {% endverbatim %}
             <ul class="m-notes-list">
                 <notes-item

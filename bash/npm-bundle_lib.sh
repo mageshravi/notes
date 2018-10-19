@@ -2,7 +2,11 @@
 
 # bundles lib files
 
-BASE_DIR=~/Dev/notes.mageshravi.com
+if [ -z ${BASE_DIR+x} ]; then
+    echo -e "\e[0;37m \e[41m BASE_DIR not defined \e[0m"
+    exit 1
+fi
+
 LIB_DIR=${BASE_DIR}/static/lib
 FONTS_DIR=${BASE_DIR}/static/fonts
 

@@ -1,7 +1,7 @@
 /* global Vue */
 /* global hljs */
 
-Vue.component('folders-item', {
+Vue.component('folder-item', {
   props: [
     'folder',
     'selectedFolder'
@@ -10,8 +10,7 @@ Vue.component('folders-item', {
   <li class="m-folders-list__item"
       v-bind:class="{'is-active': isActive}">
     <a class="m-folders-list__link"
-      v-bind:href="'#/folders/' + folder.name"
-      v-on:click="selectFolder">
+       v-bind:href="'#/folders/' + folder.name">
       {{ folder.name }}
     </a>
   </li>`,
@@ -19,30 +18,30 @@ Vue.component('folders-item', {
     isActive: function () {
       return this.folder.name === this.selectedFolder
     }
-  },
-  methods: {
-    selectFolder (event) {
-      let cssClassNames = {
-        foldersListItem: 'm-folders-list__item',
-        isActive: 'is-active'
-      }
-
-      document.querySelectorAll(`.${cssClassNames.foldersListItem}`).forEach(function (el) {
-        el.classList.remove(cssClassNames.isActive)
-      })
-      event.target.parentNode.classList.add(cssClassNames.isActive)
-      // tell parent to refresh notes
-      this.$emit('folder-change', event.target.innerText)
-    }
   }
 })
 
-Vue.component('tags-item', {
-  props: ['tag'],
+Vue.component('tags-folder-item', {
+  props: [
+    'tag',
+    'selectedTag'
+  ],
   template: `
-  <li class="m-folders-list__item">
-    <a class="m-folders-list__link" v-bind:href="'#/tags/' + tag.handle">{{ tag.handle }}</a>
-  </li>`
+  <li class="m-folders-list__item"
+      v-bind:class="{'is-active': isActive}">
+    <a class="m-folders-list__link"
+      v-bind:href="route">
+      {{ tag.handle }}
+    </a>
+  </li>`,
+  computed: {
+    isActive: function () {
+      return this.tag.handle === this.selectedTag
+    },
+    route: function () {
+      return `#${this.tag.url}`
+    }
+  }
 })
 
 Vue.component('notes-item', {
@@ -54,6 +53,7 @@ Vue.component('notes-item', {
   <li class="m-notes-list__item">
     <div class="m-note"
         v-bind:slug="note.slug"
+        v-bind:url="note.url"
         v-bind:class="{'is-active': isActive}"
         v-on:click="selectNote">
       <p class="m-note__title">{{ note.title }}</p>
@@ -78,16 +78,13 @@ Vue.component('notes-item', {
       })
       curNote.classList.add(cssClassNames.isActive)
 
-      let slug = curNote.getAttribute('slug')
-      window.location.hash = `#/${slug}`
-
-      // tell parent to refresh note-detail
-      this.$emit('note-change', slug)
+      let url = curNote.getAttribute('url')
+      window.location.hash = `#${url}`
     }
   }
 })
 
-Vue.component('tag-item', {
+Vue.component('note-tag', {
   props: ['tag'],
   template: `
   <li class="m-tags-list__item"
@@ -109,10 +106,10 @@ Vue.component('note-detail', {
   <div class="m-note-detail" v-if="note">
       <h1>{{ note.title }}</h1>
       <ul class="m-tags-list">
-        <tag-item
+        <note-tag
           v-for="tag in note.tags"
           v-bind:tag="tag"
-          v-bind:key="tag.id"></tag-tiem>
+          v-bind:key="tag.id"></note-tag>
       </ul>
       <hr>
       <div v-html="note.content"></div>
@@ -132,6 +129,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     notesList: [],
     noteDetail: false,
     selectedFolder: false,
+    selectedTag: false,
     selectedNote: false
   },
   computed: {
@@ -153,17 +151,31 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         this.tagsList = response.data
       })
     },
-    refreshNotes (folderName) {
+    getNotesInFolder (folderName) {
       folderName = encodeURIComponent(folderName)
       this.$http.get(`/folders/${folderName}`).then((response) => {
         this.notesList = response.data
       })
     },
+    getNotesWithTag (tagHandle) {
+      tagHandle = encodeURIComponent(tagHandle)
+      this.$http.get(`/tags/${tagHandle}`).then((response) => {
+        this.notesList = response.data
+      })
+    },
     folderChangeHandler (folderName) {
       this.selectedFolder = folderName
+      this.selectedTag = false
       this.selectedNote = false
       this.noteDetail = false
-      this.refreshNotes(folderName)
+      this.getNotesInFolder(folderName)
+    },
+    tagChangeHandler (tagHandle) {
+      this.selectedFolder = false
+      this.selectedTag = tagHandle
+      this.selectedNote = false
+      this.noteDetail = false
+      this.getNotesWithTag(tagHandle)
     },
     noteChangeHandler (noteSlug) {
       this.$http.get(`/notes/${noteSlug}`).then((response) => {
@@ -194,35 +206,16 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       }
     },
     init () {
-      this.refreshFolders()
-      this.refreshTags()
+      if (!this.foldersList.length) {
+        this.refreshFolders()
+      }
+
+      if (!this.tagsList.length) {
+        this.refreshTags()
+      }
 
       if (!window.location.hash) {
-        // no hash provided = home page
-
-        this.$http.get('/folders').then((response) => {
-          this.foldersList = response.data
-
-          if (!this.foldersList.length) {
-            return
-          }
-
-          // get notes in first folder
-          let folderName = this.foldersList[0].name
-          this.selectedFolder = folderName
-          this.$http.get(`/folders/${folderName}`).then((response) => {
-            this.notesList = response.data
-            if (this.notesList.length) {
-              // get the first note
-              let firstNoteSlug = this.notesList[0].slug
-              this.selectedNote = firstNoteSlug
-              this.noteChangeHandler(firstNoteSlug)
-            }
-
-            this.slideToMobileFocusArea('folders-list')
-          })
-        })
-
+        this._noHashInit()  // no hash provided = home page
         return
       }
 
@@ -235,7 +228,16 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         return
       }
 
-      let notePattern = /^#\/([^/]+)\/?$/
+      let tagsPattern = /^#\/tags\/([^/]+)\/?$/
+      let tagsMatch = window.location.hash.match(tagsPattern)
+      if (tagsMatch) {
+        let tagHandle = tagsMatch[1]
+        this.tagChangeHandler(tagHandle)
+        this.slideToMobileFocusArea('notes-list')
+        return
+      }
+
+      let notePattern = /^#\/notes\/([^/]+)\/?$/
       let noteMatch = window.location.hash.match(notePattern)
       if (noteMatch) {
         let noteSlug = noteMatch[1]
@@ -245,15 +247,55 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
           this.noteDetail = response.data
           this.selectedNote = this.noteDetail.slug
           let folderName = this.noteDetail.folder.name
-          this.selectedFolder = folderName
+          let isParentFolderSelected = (folderName === this.selectedFolder)
 
-          // fetch other notes in same folder
-          this.$http.get(`/folders/${folderName}`).then((response) => {
-            this.notesList = response.data
-            this.slideToMobileFocusArea('note-detail')
-          })
+          let isTagSelected = false
+          for (let i = 0; i < this.noteDetail.tags.length; i++) {
+            let curTag = this.noteDetail.tags[i]
+            if (curTag.handle === this.selectedTag) {
+              isTagSelected = true
+            }
+          }
+
+          if (!isTagSelected) {
+            this.selectedTag = false
+          }
+
+          if (!isParentFolderSelected && !isTagSelected) {
+            this.selectedFolder = folderName
+
+            // fetch other notes in same folder
+            this.$http.get(`/folders/${folderName}`).then((response) => {
+              this.notesList = response.data
+              this.slideToMobileFocusArea('note-detail')
+            })
+          }
         })
       }
+    },
+    _noHashInit () {
+      this.$http.get('/folders').then((response) => {
+        this.foldersList = response.data
+
+        if (!this.foldersList.length) {
+          return
+        }
+
+        // get notes in first folder
+        let folderName = this.foldersList[0].name
+        this.selectedFolder = folderName
+        this.$http.get(`/folders/${folderName}`).then((response) => {
+          this.notesList = response.data
+          if (this.notesList.length) {
+            // get the first note
+            let firstNoteSlug = this.notesList[0].slug
+            this.selectedNote = firstNoteSlug
+            this.noteChangeHandler(firstNoteSlug)
+          }
+
+          this.slideToMobileFocusArea('folders-list')
+        })
+      })
     }
   },
   beforeMount () {
