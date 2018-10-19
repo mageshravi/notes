@@ -56,9 +56,18 @@ Vue.component('notes-item', {
     }
   }
 });
+Vue.component('tag-item', {
+  props: ['tag'],
+  template: "\n  <li class=\"m-tags-list__item\"\n      v-bind:key=\"tag.id\">\n    <a class=\"m-tags-list__link\"\n       v-bind:href=\"route\">{{ tag.handle }}</a>\n  </li>\n  ",
+  computed: {
+    route: function route() {
+      return "#".concat(this.tag.url);
+    }
+  }
+});
 Vue.component('note-detail', {
   props: ['note'],
-  template: "\n  <div class=\"m-note-detail\" v-if=\"note\">\n      <h1>{{ note.title }}</h1>\n      <span v-for=\"tag in note.tags\"\n            v-bind:tag=\"tag\"\n            v-bind:key=\"tag.id\">\n          {{ tag.handle }}\n      </span>\n      <hr>\n      <div v-html=\"note.content\"></div>\n  </div>",
+  template: "\n  <div class=\"m-note-detail\" v-if=\"note\">\n      <h1>{{ note.title }}</h1>\n      <ul class=\"m-tags-list\">\n        <tag-item\n          v-for=\"tag in note.tags\"\n          v-bind:tag=\"tag\"\n          v-bind:key=\"tag.id\"></tag-tiem>\n      </ul>\n      <hr>\n      <div v-html=\"note.content\"></div>\n  </div>",
   updated: function updated() {
     document.querySelectorAll('.m-note-detail pre code').forEach(function (el) {
       hljs.highlightBlock(el);

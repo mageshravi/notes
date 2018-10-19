@@ -1,4 +1,7 @@
-from .models import Folder, Tag, Note
+from datetime import datetime
+
+from .models import Folder, Note, Tag
+from django.urls import reverse
 
 
 class FolderSerializer(object):
@@ -19,11 +22,22 @@ class TagSerializer(object):
         """
         return {
             'id': tag.id,
-            'handle': tag.handle
+            'handle': tag.handle,
+            'url': reverse('notes:with-tag', kwargs={'tag_handle': tag.handle})
         }
 
 
 class NoteSerializer(object):
+
+    def _format_datetime(self, dt: datetime):
+        """returns time if today, the date otherwise
+        """
+
+        today = datetime.now()
+        if today.date() == dt.date():
+            return dt.strftime('%H:%M %P')
+        else:
+            return dt.strftime('%d %b %Y')
 
     def serialize_minimal(self, note: Note):
 
@@ -31,7 +45,7 @@ class NoteSerializer(object):
             'id': note.id,
             'title': note.title,
             'slug': note.slug,
-            'updated_at': note.updated_at
+            'updated_at': self._format_datetime(note.updated_at)
         }
 
     def serialize_full(self, note: Note):
@@ -44,7 +58,7 @@ class NoteSerializer(object):
             'title': note.title,
             'slug': note.slug,
             'content': note.content,
-            'updated_at': note.updated_at,
+            'updated_at': self._format_datetime(note.updated_at),
             'tags': [tag_serializer.serialize(tag) for tag in note.tags.all()],
             'folder': folder_serializer.serialize(note.folder)
         }

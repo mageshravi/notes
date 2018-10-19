@@ -1,6 +1,12 @@
 @import "/static/fonts/inter-ui/inter-ui.css";
+@import "/static/fonts/fira-code/fira_code.css";
 
 %font-family-inter-ui {
     font-family: 'Inter UI', sans-serif;
     font-kerning: normal;
+}
+
+%font-family-fira-code {
+    font-family: 'Fira Code', monospace;
+    line-height: 1.3;
 }

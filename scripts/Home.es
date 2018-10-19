@@ -87,16 +87,33 @@ Vue.component('notes-item', {
   }
 })
 
+Vue.component('tag-item', {
+  props: ['tag'],
+  template: `
+  <li class="m-tags-list__item"
+      v-bind:key="tag.id">
+    <a class="m-tags-list__link"
+       v-bind:href="route">{{ tag.handle }}</a>
+  </li>
+  `,
+  computed: {
+    route: function () {
+      return `#${this.tag.url}`
+    }
+  }
+})
+
 Vue.component('note-detail', {
   props: ['note'],
   template: `
   <div class="m-note-detail" v-if="note">
       <h1>{{ note.title }}</h1>
-      <span v-for="tag in note.tags"
-            v-bind:tag="tag"
-            v-bind:key="tag.id">
-          {{ tag.handle }}
-      </span>
+      <ul class="m-tags-list">
+        <tag-item
+          v-for="tag in note.tags"
+          v-bind:tag="tag"
+          v-bind:key="tag.id"></tag-tiem>
+      </ul>
       <hr>
       <div v-html="note.content"></div>
   </div>`,

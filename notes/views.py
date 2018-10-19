@@ -48,6 +48,17 @@ class NotesInFolder(View):
         return JsonResponse(result, safe=False)
 
 
+class NotesWithTag(View):
+
+    def get(self, request, tag_handle):
+        tag_handle = urllib.parse.unquote(tag_handle)
+        tag = get_object_or_404(Tag, handle=tag_handle)
+        notes = Note.objects.filter(tags=tag)
+        serializer = NoteSerializer()
+        result = [serializer.serialize_minimal(note) for note in notes]
+        return JsonResponse(result, safe=False)
+
+
 class NoteDetail(View):
 
     def get(self, request, note_slug):

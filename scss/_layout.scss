@@ -24,6 +24,8 @@
 
 .l-folders {
     width: 100vw;
+    max-height: 100vh;
+    overflow: auto;
     background: url('/static/images/debut_dark.png');  // TODO: retina screens @2X
     background-repeat: repeat;
     flex-shrink: 0;
@@ -34,6 +36,8 @@
 }
 .l-notes {
     width: 100vw;
+    max-height: 100vh;
+    overflow: auto;
     background: url('/static/images/creampaper.png');    // TODO: retina screens @2X
     flex-shrink: 0;
 
@@ -43,6 +47,8 @@
 }
 .l-note-detail {
     width: 100vw;
+    max-height: 100vh;
+    overflow: auto;
     background: url('/static/images/creampaper.png');    // TODO: retina screens @2X
     flex-shrink: 0;
 
