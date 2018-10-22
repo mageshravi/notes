@@ -1,12 +1,4 @@
-@import 'vars';
-@import 'fonts';
-
-/* SMACSS themes (colors) */
-@import 'theme';
-
-/* SMACSS base and layout */
-@import 'base';
-@import 'layout';
+@import 'style_above_fold';
 
 /* SMACSS modules */
 @import 'm-folders';

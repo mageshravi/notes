@@ -31,9 +31,9 @@ cd ${NODE_MODULES}
 
 echo "Copying files from..."
 
-# echo " |- FontAwesome"
-# cp -r font-awesome/css/font-awesome.min.css ${LIB_DIR}/
-# cp -r font-awesome/fonts/* ${FONTS_DIR}/
+echo " |- FontAwesome"
+cp -r font-awesome/css/font-awesome.min.css ${LIB_DIR}/
+cp -r font-awesome/fonts/* ${FONTS_DIR}/
 
 # echo " |- Handlebars"
 # cp handlebars/dist/handlebars.min.js ${LIB_DIR}/

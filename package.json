@@ -15,7 +15,6 @@
     "watch:css": "onchange 'scss/*.scss' -- npm run build:css",
     "watch:js": "onchange 'scripts/*.js' 'scripts-es6/*.es' -- npm run build:js",
     "watch:all": "parallelshell 'npm run watch:css' 'npm run watch:js'",
-
     "scss:dev": "onerror 'node-sass -o static/css/ scss/' --title 'Error compiling SCSS' --icon error",
     "uglify:dev": "onerror 'uglifyjs scripts/*.js -o static/js/app.min.js' --title 'Error uglifying JS' --icon error",
     "build:css:dev": "npm run scss:dev && npm run autoprefixer",
@@ -23,7 +22,6 @@
     "watch:css:dev": "onchange 'scss/*.scss' -- npm run build:css:dev && npm run kss",
     "watch:js:dev": "onchange 'scripts/*.es' -- npm run build:js:dev",
     "watch:dev": "parallelshell 'npm run watch:css:dev' 'npm run watch:js:dev'",
-
     "kss": "kss --config kss-config.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -52,6 +50,7 @@
   },
   "dependencies": {
     "cli-error-notifier": "^2.0.1",
+    "font-awesome": "^4.7.0",
     "normalize.css": "^8.0.0",
     "vue": "^2.5.17",
     "vue-resource": "^1.5.1"

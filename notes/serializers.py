@@ -11,7 +11,8 @@ class FolderSerializer(object):
         """
         return {
             'id': folder.id,
-            'name': folder.name
+            'name': folder.name,
+            'url': reverse('notes:in-folder', kwargs={'folder_name': folder.name})
         }
 
 

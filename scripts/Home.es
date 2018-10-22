@@ -10,13 +10,28 @@ Vue.component('folder-item', {
   <li class="m-folders-list__item"
       v-bind:class="{'is-active': isActive}">
     <a class="m-folders-list__link"
-       v-bind:href="'#/folders/' + folder.name">
+       v-bind:href="route"
+       v-on:click="selectFolder">
       {{ folder.name }}
     </a>
   </li>`,
   computed: {
     isActive: function () {
       return this.folder.name === this.selectedFolder
+    },
+    route: function () {
+      return `#${this.folder.url}`
+    }
+  },
+  methods: {
+    selectFolder (ev) {
+      let selectedFolder = ev.currentTarget.parentNode
+
+      if (selectedFolder.classList.contains('is-active')) {
+        ev.preventDefault()
+        this.$emit('slide-to-mobile-panel', 'notes-list')
+        return false
+      }
     }
   }
 })
@@ -30,7 +45,8 @@ Vue.component('tags-folder-item', {
   <li class="m-folders-list__item"
       v-bind:class="{'is-active': isActive}">
     <a class="m-folders-list__link"
-      v-bind:href="route">
+       v-bind:href="route"
+       v-on:click="selectFolder">
       {{ tag.handle }}
     </a>
   </li>`,
@@ -40,6 +56,17 @@ Vue.component('tags-folder-item', {
     },
     route: function () {
       return `#${this.tag.url}`
+    }
+  },
+  methods: {
+    selectFolder (ev) {
+      let selectedFolder = ev.currentTarget.parentNode
+
+      if (selectedFolder.classList.contains('is-active')) {
+        ev.preventDefault()
+        this.$emit('slide-to-mobile-panel', 'notes-list')
+        return false
+      }
     }
   }
 })
@@ -79,7 +106,14 @@ Vue.component('notes-item', {
       curNote.classList.add(cssClassNames.isActive)
 
       let url = curNote.getAttribute('url')
-      window.location.hash = `#${url}`
+      let noteRoute = `#${url}`
+
+      if (window.location.hash === noteRoute) {
+        this.$emit('slide-to-mobile-panel', 'note-detail')
+        return
+      }
+
+      window.location.hash = noteRoute
     }
   }
 })
@@ -101,9 +135,24 @@ Vue.component('note-tag', {
 })
 
 Vue.component('note-detail', {
-  props: ['note'],
+  props: [
+    'note',
+    'selectedTag'
+  ],
   template: `
   <div class="m-note-detail" v-if="note">
+      <a class="m-note-detail__notes-list-link"
+         v-if="selectedTag"
+         v-bind:href="route"
+         v-on:click="slideToNotesListInMobileView"
+         ><i class="fa fa-angle-left" aria-hidden="true"></i> #{{ selectedTag }}
+      </a>
+      <a class="m-note-detail__notes-list-link"
+         v-else
+         v-bind:href="route"
+         v-on:click="slideToNotesListInMobileView"
+         ><i class="fa fa-angle-left" aria-hidden="true"></i> {{ note.folder.name }}
+      </a>
       <h1>{{ note.title }}</h1>
       <ul class="m-tags-list">
         <note-tag
@@ -114,10 +163,22 @@ Vue.component('note-detail', {
       <hr>
       <div v-html="note.content"></div>
   </div>`,
+  computed: {
+    route: function () {
+      return `#${this.note.folder.url}`
+    }
+  },
   updated: function () {
     document.querySelectorAll('.m-note-detail pre code').forEach(function (el) {
       hljs.highlightBlock(el)
     })
+  },
+  methods: {
+    slideToNotesListInMobileView: function (ev) {
+      ev.preventDefault()
+      this.$emit('slide-to-mobile-panel', 'notes-list')
+      return false
+    }
   }
 })
 
@@ -182,7 +243,12 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         this.noteDetail = response.data
       })
     },
-    slideToMobileFocusArea (area) {
+    slideToFoldersListInMobileView (ev) {
+      ev.preventDefault()
+      this.slideToMobilePanel('folders-list')
+      return false
+    },
+    slideToMobilePanel (area) {
       let wrapperEl = document.querySelector('.l-wrapper')
 
       switch (area) {
@@ -224,7 +290,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       if (foldersMatch) {
         let folderName = foldersMatch[1]
         this.folderChangeHandler(folderName)
-        this.slideToMobileFocusArea('notes-list')
+        this.slideToMobilePanel('notes-list')
         return
       }
 
@@ -233,7 +299,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       if (tagsMatch) {
         let tagHandle = tagsMatch[1]
         this.tagChangeHandler(tagHandle)
-        this.slideToMobileFocusArea('notes-list')
+        this.slideToMobilePanel('notes-list')
         return
       }
 
@@ -267,8 +333,10 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
             // fetch other notes in same folder
             this.$http.get(`/folders/${folderName}`).then((response) => {
               this.notesList = response.data
-              this.slideToMobileFocusArea('note-detail')
+              this.slideToMobilePanel('note-detail')
             })
+          } else {
+            this.slideToMobilePanel('note-detail')
           }
         })
       }
@@ -293,7 +361,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
             this.noteChangeHandler(firstNoteSlug)
           }
 
-          this.slideToMobileFocusArea('folders-list')
+          this.slideToMobilePanel('folders-list')
         })
       })
     }

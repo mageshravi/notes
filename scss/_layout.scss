@@ -26,9 +26,15 @@
     width: 100vw;
     max-height: 100vh;
     overflow: auto;
-    background: url('/static/images/debut_dark.png');  // TODO: retina screens @2X
+    background: url('/static/images/debut_dark.png');
     background-repeat: repeat;
     flex-shrink: 0;
+
+    @media
+    (-webkit-min-device-pixel-ratio: 2),
+    (min-resolution: 192dpi) {
+        background: url('/static/images/debut_dark_@2X.png');
+    }
 
     @media (min-width: 768px) {
         width: 200px;
@@ -38,8 +44,14 @@
     width: 100vw;
     max-height: 100vh;
     overflow: auto;
-    background: url('/static/images/creampaper.png');    // TODO: retina screens @2X
+    background: url('/static/images/creampaper.png');
     flex-shrink: 0;
+
+    @media
+    (-webkit-min-device-pixel-ratio: 2),
+    (min-resolution: 192dpi) {
+        background: url('/static/images/creampaper_@2X.png');
+    }
 
     @media (min-width: 768px) {
         width: 350px;
@@ -49,8 +61,14 @@
     width: 100vw;
     max-height: 100vh;
     overflow: auto;
-    background: url('/static/images/creampaper.png');    // TODO: retina screens @2X
+    background: url('/static/images/creampaper.png');
     flex-shrink: 0;
+
+    @media
+    (-webkit-min-device-pixel-ratio: 2),
+    (min-resolution: 192dpi) {
+        background: url('/static/images/creampaper_@2X.png');
+    }
 
     @media (min-width: 768px) {
         flex-shrink: 1;

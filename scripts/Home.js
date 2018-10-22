@@ -5,22 +5,47 @@
 /* global hljs */
 Vue.component('folder-item', {
   props: ['folder', 'selectedFolder'],
-  template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n       v-bind:href=\"'#/folders/' + folder.name\">\n      {{ folder.name }}\n    </a>\n  </li>",
+  template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n       v-bind:href=\"route\"\n       v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
   computed: {
     isActive: function isActive() {
       return this.folder.name === this.selectedFolder;
+    },
+    route: function route() {
+      return "#".concat(this.folder.url);
+    }
+  },
+  methods: {
+    selectFolder: function selectFolder(ev) {
+      var selectedFolder = ev.currentTarget.parentNode;
+
+      if (selectedFolder.classList.contains('is-active')) {
+        ev.preventDefault();
+        this.$emit('slide-to-mobile-panel', 'notes-list');
+        return false;
+      }
     }
   }
 });
 Vue.component('tags-folder-item', {
   props: ['tag', 'selectedTag'],
-  template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n      v-bind:href=\"route\">\n      {{ tag.handle }}\n    </a>\n  </li>",
+  template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n       v-bind:href=\"route\"\n       v-on:click=\"selectFolder\">\n      {{ tag.handle }}\n    </a>\n  </li>",
   computed: {
     isActive: function isActive() {
       return this.tag.handle === this.selectedTag;
     },
     route: function route() {
       return "#".concat(this.tag.url);
+    }
+  },
+  methods: {
+    selectFolder: function selectFolder(ev) {
+      var selectedFolder = ev.currentTarget.parentNode;
+
+      if (selectedFolder.classList.contains('is-active')) {
+        ev.preventDefault();
+        this.$emit('slide-to-mobile-panel', 'notes-list');
+        return false;
+      }
     }
   }
 });
@@ -44,7 +69,14 @@ Vue.component('notes-item', {
       });
       curNote.classList.add(cssClassNames.isActive);
       var url = curNote.getAttribute('url');
-      window.location.hash = "#".concat(url);
+      var noteRoute = "#".concat(url);
+
+      if (window.location.hash === noteRoute) {
+        this.$emit('slide-to-mobile-panel', 'note-detail');
+        return;
+      }
+
+      window.location.hash = noteRoute;
     }
   }
 });
@@ -58,12 +90,24 @@ Vue.component('note-tag', {
   }
 });
 Vue.component('note-detail', {
-  props: ['note'],
-  template: "\n  <div class=\"m-note-detail\" v-if=\"note\">\n      <h1>{{ note.title }}</h1>\n      <ul class=\"m-tags-list\">\n        <note-tag\n          v-for=\"tag in note.tags\"\n          v-bind:tag=\"tag\"\n          v-bind:key=\"tag.id\"></note-tag>\n      </ul>\n      <hr>\n      <div v-html=\"note.content\"></div>\n  </div>",
+  props: ['note', 'selectedTag'],
+  template: "\n  <div class=\"m-note-detail\" v-if=\"note\">\n      <a class=\"m-note-detail__notes-list-link\"\n         v-if=\"selectedTag\"\n         v-bind:href=\"route\"\n         v-on:click=\"slideToNotesListInMobileView\"\n         ><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i> #{{ selectedTag }}\n      </a>\n      <a class=\"m-note-detail__notes-list-link\"\n         v-else\n         v-bind:href=\"route\"\n         v-on:click=\"slideToNotesListInMobileView\"\n         ><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i> {{ note.folder.name }}\n      </a>\n      <h1>{{ note.title }}</h1>\n      <ul class=\"m-tags-list\">\n        <note-tag\n          v-for=\"tag in note.tags\"\n          v-bind:tag=\"tag\"\n          v-bind:key=\"tag.id\"></note-tag>\n      </ul>\n      <hr>\n      <div v-html=\"note.content\"></div>\n  </div>",
+  computed: {
+    route: function route() {
+      return "#".concat(this.note.folder.url);
+    }
+  },
   updated: function updated() {
     document.querySelectorAll('.m-note-detail pre code').forEach(function (el) {
       hljs.highlightBlock(el);
     });
+  },
+  methods: {
+    slideToNotesListInMobileView: function slideToNotesListInMobileView(ev) {
+      ev.preventDefault();
+      this.$emit('slide-to-mobile-panel', 'notes-list');
+      return false;
+    }
   }
 });
 var notesApp = new Vue({
@@ -138,7 +182,12 @@ var notesApp = new Vue({
         _this5.noteDetail = response.data;
       });
     },
-    slideToMobileFocusArea: function slideToMobileFocusArea(area) {
+    slideToFoldersListInMobileView: function slideToFoldersListInMobileView(ev) {
+      ev.preventDefault();
+      this.slideToMobilePanel('folders-list');
+      return false;
+    },
+    slideToMobilePanel: function slideToMobilePanel(area) {
       var wrapperEl = document.querySelector('.l-wrapper');
 
       switch (area) {
@@ -185,7 +234,7 @@ var notesApp = new Vue({
       if (foldersMatch) {
         var folderName = foldersMatch[1];
         this.folderChangeHandler(folderName);
-        this.slideToMobileFocusArea('notes-list');
+        this.slideToMobilePanel('notes-list');
         return;
       }
 
@@ -195,7 +244,7 @@ var notesApp = new Vue({
       if (tagsMatch) {
         var tagHandle = tagsMatch[1];
         this.tagChangeHandler(tagHandle);
-        this.slideToMobileFocusArea('notes-list');
+        this.slideToMobilePanel('notes-list');
         return;
       }
 
@@ -230,8 +279,10 @@ var notesApp = new Vue({
             _this6.$http.get("/folders/".concat(folderName)).then(function (response) {
               _this6.notesList = response.data;
 
-              _this6.slideToMobileFocusArea('note-detail');
+              _this6.slideToMobilePanel('note-detail');
             });
+          } else {
+            _this6.slideToMobilePanel('note-detail');
           }
         });
       }
@@ -261,7 +312,7 @@ var notesApp = new Vue({
             _this7.noteChangeHandler(firstNoteSlug);
           }
 
-          _this7.slideToMobileFocusArea('folders-list');
+          _this7.slideToMobilePanel('folders-list');
         });
       });
     }

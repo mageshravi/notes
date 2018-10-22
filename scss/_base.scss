@@ -2,6 +2,17 @@
     box-sizing: border-box;
 }
 
+html {
+    background: url('/static/images/debut_dark.png');
+    background-repeat: repeat;
+
+    @media
+    (-webkit-min-device-pixel-ratio: 2),
+    (min-resolution: 192dpi) {
+        background: url('/static/images/debut_dark_@2X.png');
+    }
+}
+
 html, body {
     @extend %font-family-inter-ui;
     margin: 0;
@@ -86,4 +97,10 @@ code {
     font-size: 0.875em;
     border-radius: 4px;
     overflow: auto;
+}
+
+// vue-js
+
+[v-cloak] {
+    display: none;
 }
