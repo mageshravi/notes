@@ -4,27 +4,42 @@
     overflow-x: hidden;
     transition: margin-left .25s linear;
 
+
     @media (max-width: 767px) {
         &.folders-visible {
             margin-left: 0;
             transition: margin-left .25s linear;
+
+            .l-notes,
+            .l-note-detail {
+                max-height: 100vh;
+            }
         }
 
         &.notes-list-visible {
             margin-left: -100vw;
             transition: margin-left .25s linear;
+
+            .l-folders,
+            .l-note-detail {
+                max-height: 100vh;
+            }
         }
 
         &.note-detail-visible {
             margin-left: -200vw;
             transition: margin-left .25s linear;
+
+            .l-folders,
+            .l-notes {
+                max-height: 100vh;
+            }
         }
     }
 }
 
 .l-folders {
     width: 100vw;
-    max-height: 100vh;
     overflow: auto;
     background: url('/static/images/debut_dark.png');
     background-repeat: repeat;
@@ -38,11 +53,11 @@
 
     @media (min-width: 768px) {
         width: 200px;
+        max-height: 100vh;
     }
 }
 .l-notes {
     width: 100vw;
-    max-height: 100vh;
     overflow: auto;
     background: url('/static/images/creampaper.png');
     flex-shrink: 0;
@@ -55,11 +70,11 @@
 
     @media (min-width: 768px) {
         width: 350px;
+        max-height: 100vh;
     }
 }
 .l-note-detail {
     width: 100vw;
-    max-height: 100vh;
     overflow: auto;
     background: url('/static/images/creampaper.png');
     flex-shrink: 0;
@@ -72,5 +87,6 @@
 
     @media (min-width: 768px) {
         flex-shrink: 1;
+        max-height: 100vh;
     }
 }
