@@ -1,0 +1,58 @@
+{
+  "name": "django-notes",
+  "version": "0.9.0beta",
+  "description": "Front-end workflow for django-notes app",
+  "main": "npm_init.js",
+  "scripts": {
+    "scss": "onerror 'node-sass --output-style compressed -o static/css/ scss/' --title 'Error compiling SCSS' --icon error",
+    "autoprefixer": "postcss -u autoprefixer -r static/css/*.css",
+    "compile": "onerror 'babel scripts/*.es -d scripts/ --presets=@babel/preset-env' --title 'Error compiling JS (Babel)' --icon error",
+    "lint": "onerror 'eslint scripts/*.es' --title 'Error linting JS (ESLint)' --icon error",
+    "uglify": "onerror 'uglifyjs scripts/*.js -m -c -o static/js/app.min.js' --title 'Error uglifying JS' --icon error",
+    "build:css": "npm run scss && npm run autoprefixer",
+    "build:js": "npm run lint && npm run compile && npm run uglify",
+    "build:lib": "bash/npm-build_lib.sh",
+    "watch:css": "onchange 'scss/*.scss' -- npm run build:css",
+    "watch:js": "onchange 'scripts/*.js' 'scripts-es6/*.es' -- npm run build:js",
+    "watch:all": "parallelshell 'npm run watch:css' 'npm run watch:js'",
+    "scss:dev": "onerror 'node-sass -o static/css/ scss/' --title 'Error compiling SCSS' --icon error",
+    "uglify:dev": "onerror 'uglifyjs scripts/*.js -o static/js/app.min.js' --title 'Error uglifying JS' --icon error",
+    "build:css:dev": "npm run scss:dev && npm run autoprefixer",
+    "build:js:dev": "npm run lint && npm run compile && npm run uglify:dev",
+    "watch:css:dev": "onchange 'scss/*.scss' -- npm run build:css:dev && npm run kss",
+    "watch:js:dev": "onchange 'scripts/*.es' -- npm run build:js:dev",
+    "watch:dev": "parallelshell 'npm run watch:css:dev' 'npm run watch:js:dev'",
+    "kss": "kss --config kss-config.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mageshravi/notes"
+  },
+  "author": "Magesh Ravi <magesh@webinative.com>",
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "@babel/cli": "^7.1.2",
+    "@babel/core": "^7.1.2",
+    "@babel/preset-env": "^7.1.0",
+    "autoprefixer": "^6.4.1",
+    "eslint": "^3.5.0",
+    "eslint-config-standard": "^6.0.0",
+    "eslint-plugin-promise": "^3.4.0",
+    "eslint-plugin-react": "^6.2.0",
+    "eslint-plugin-standard": "^2.0.0",
+    "kss": "^3.0.0-beta.23",
+    "node-sass": "~3.8.0",
+    "onchange": "^3.0.2",
+    "parallelshell": "^3.0.2",
+    "postcss-cli": "^2.6.0",
+    "uglify-js": "^2.7.3"
+  },
+  "dependencies": {
+    "cli-error-notifier": "^2.0.1",
+    "font-awesome": "^4.7.0",
+    "normalize.css": "^8.0.0",
+    "vue": "^2.5.17",
+    "vue-resource": "^1.5.1"
+  }
+}

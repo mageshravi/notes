@@ -1,0 +1,39 @@
+.m-tags-list {
+    margin: 0;
+    padding: 0;
+    font-size: 0.87em;
+    letter-spacing: 0.001em;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+
+    &__item {
+        & + & {
+            margin-left: 15px;
+        }
+    }
+
+    &__link {
+        text-decoration: none;
+        display: block;
+        border-radius: 4px;
+
+        &:hover {
+            text-decoration: underline;
+        }
+
+        &:focus {
+            outline: 1px dotted gray;
+        }
+
+        &::before {
+            content: '#';
+            padding-right: 1px;
+            float: left;
+        }
+    }
+
+    &--inline {
+        display: inline-flex;
+    }
+}

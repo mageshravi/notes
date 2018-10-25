@@ -1,0 +1,100 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="apple-mobile-web-capable" content="yes">
+    <title>Notes</title>
+    <link rel="stylesheet" href="{% static 'css/style_above_fold.css' %}">
+    <link rel="apple-touch-icon" sizes="152x152" href="{% static 'wicons/notes/152x152.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'wicons/notes/iphone-retina.png' %}">
+    <link rel="apple-touch-icon" sizes="167x167" href="{% static 'wicons/notes/ipad-retina.png' %}">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+</head>
+<body>
+    <div class="l-wrapper" id="notes-app" v-cloak>
+        <div class="l-folders m-folders">
+            <h2 class="m-folders__title">Folders</h2>
+            <ul class="m-folders-list" v-if="notEmptyFoldersList">
+                <folder-item
+                    v-for="folder in foldersList"
+                    v-bind:folder="folder"
+                    v-bind:selected-folder="selectedFolder"
+                    v-bind:key="folder.id"
+                    v-on:slide-to-mobile-panel="slideToMobilePanel">
+                </folder-item>
+            </ul>
+            <ul class="m-folders-list" v-else>
+                <li class="m-folders-list__item is-disabled">
+                    <span class="m-folders-list__link">No folders</span>
+                </li>
+            </ul>
+
+            <h2 class="m-folders__title">Tags</h2>
+            <ul class="m-folders-list m-folders-list--tags" v-if="notEmptyTagsList">
+                <tags-folder-item
+                    v-for="tag in tagsList"
+                    v-bind:tag="tag"
+                    v-bind:selected-tag="selectedTag"
+                    v-bind:key="tag.id"
+                    v-on:slide-to-mobile-panel="slideToMobilePanel">
+                </tags-folder-item>
+            </ul>
+            <ul class="m-folders-list m-folders-list--tags" v-else>
+                <li class="m-folders-list__item is-disabled">
+                    <span class="m-folders-list__link">No tags</span>
+                </li>
+            </ul>
+        </div>
+        <div class="l-notes m-notes">
+            {% verbatim %}
+            <div class="m-notes__header"
+                 v-if="selectedFolder">
+                <a class="m-notes__folders-list-link"
+                   v-bind:href="'#/folders/' + selectedFolder"
+                   v-on:click="slideToFoldersListInMobileView"><i class="fa fa-angle-left"></i> Folders</a>
+                <h2 class="m-notes__title">{{ selectedFolder }}</h2>
+            </div>
+
+            <div class="m-notes__header"
+                 v-if="selectedTag">
+                <a class="m-notes__folders-list-link"
+                   v-bind:href="'#/tags/' + selectedTag"
+                   v-on:click="slideToFoldersListInMobileView"><i class="fa fa-angle-left"></i> Tags</a>
+                <h2 class="m-notes__title">#{{ selectedTag }}</h2>
+            </div>
+            {% endverbatim %}
+            <ul class="m-notes-list">
+                <notes-item
+                    v-for="note in notesList"
+                    v-bind:note="note"
+                    v-bind:selected-note="selectedNote"
+                    v-bind:key="note.id"
+                    v-on:note-change="noteChangeHandler"
+                    v-on:slide-to-mobile-panel="slideToMobilePanel">
+                </notes-item>
+            </ul>
+        </div>
+        <div class="l-note-detail">
+            <note-detail
+                v-bind:note="noteDetail"
+                v-bind:selected-tag="selectedTag"
+                v-on:slide-to-mobile-panel="slideToMobilePanel">
+            </note-detail>
+        </div>
+    </div>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/lib.css' %}">
+
+    <script src="{% static 'js/lib.js' %}"></script>
+    <script src="{% static 'js/app.min.js' %}"></script>
+
+    <link rel="stylesheet" href="{% static 'ckeditor/ckeditor/plugins/codesnippet/lib/highlight/styles/obsidian.css' %}">
+    <script src="{% static 'ckeditor/ckeditor/plugins/codesnippet/lib/highlight/highlight.pack.js' %}"></script>
+    <script>
+        hljs.initHighlightingOnLoad();
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+    "title": "Django Notes app",
+    "source": "scss/",
+    "destination": "styleguide/",
+    "builder": "node_modules/michelangelo/kss_styleguide/custom-template/",
+    "css": [
+        "../static/fonts/inter-ui/inter-ui.css",
+        "../public/css/style.css"
+    ],
+    "js": [
+        "../public/js/app.min.js"
+    ]
+}
