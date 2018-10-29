@@ -1,5 +1,8 @@
-from django.db import models
+import re
+
 from ckeditor.fields import RichTextField
+from django.core.exceptions import ValidationError
+from django.db import models
 
 
 class Folder(models.Model):
@@ -9,6 +12,18 @@ class Folder(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        # name has same rules as slug, but without slashes
+        pattern = re.compile('^[a-z0-9_]+$', re.IGNORECASE)
+        if not pattern.match(self.name):
+            raise ValidationError({
+                'name': ValidationError(
+                    'Only alphanumeric characters and underscore allowed',
+                    code='invalid'
+                )
+            })
+        # endif
+
 
 class Tag(models.Model):
     handle = models.CharField(max_length=64, unique=True)
@@ -16,6 +31,18 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.handle
+
+    def clean(self):
+        # handle has same rules as slug, but without slashes
+        pattern = re.compile('^[a-z0-9_]+$', re.IGNORECASE)
+        if not pattern.match(self.handle):
+            raise ValidationError({
+                'handle': ValidationError(
+                    'Only alphanumeric characters and underscore allowed',
+                    code='invalid'
+                )
+            })
+        # endif
 
 
 class Note(models.Model):
