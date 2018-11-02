@@ -374,3 +374,11 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
 window.onhashchange = function (ev) {
   notesApp.init()
 }
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/static/sw.js')
+    .then(function () {
+      console.log('Service Worker registered')
+    })
+}

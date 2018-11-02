@@ -5,6 +5,8 @@ services:
     image: postgres:10.4
     volumes:
       - notes-db-data:/var/lib/postgresql
+    networks:
+      - notes-net
     env_file:
       - notes-db.env
     ports:
@@ -12,14 +14,19 @@ services:
   notes-web:
     build: .
     command: python manage.py runserver 0.0.0.0:8000
+    depends_on:
+      - notes-db
     env_file:
       - notes-web.env
     volumes:
       - .:/code
     ports:
       - "8000:8000"
-    links:
-      - notes-db
+    networks:
+      - notes-net
 
 volumes:
   notes-db-data:
+
+networks:
+  notes-net:

@@ -325,3 +325,9 @@ var notesApp = new Vue({
 window.onhashchange = function (ev) {
   notesApp.init();
 };
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').then(function () {
+    console.log('Service Worker registered');
+  });
+}
