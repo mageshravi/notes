@@ -1,4 +1,5 @@
 var staticCacheName = 'notes-static-v1';    // this is the cache version. do not confuse with the app version
+var dataCacheName = 'notes-data-v1';
 
 var filesToCache = [
   '/',
@@ -24,16 +25,26 @@ var filesToCache = [
   '/static/wicons/notes/ipad-retina.png',
 ]
 
+var dataToCache = [
+  '/folders',
+  '/tags',
+]
+
 self.addEventListener('install', function (ev) {
   console.log('[ServiceWorker] Install')
   ev.waitUntil(
     caches.open(staticCacheName)
-    .then(function (cache) {
-      console.log('[ServiceWorker] Caching app shell');
-      return cache.addAll(filesToCache)
-    })
+      .then(function (cache) {
+        console.log('[ServiceWorker] Caching app shell');
+        return cache.addAll(filesToCache)
+      }),
+
+    caches.open(dataCacheName)
+      .then(function (cache) {
+        return cache.addAll(dataToCache)
+      })
   )
-})
+});
 
 self.addEventListener('activate', function (ev) {
   console.log('[ServiceWorker] Activate')
@@ -42,7 +53,7 @@ self.addEventListener('activate', function (ev) {
     .then(function (keysList) {
       return Promise.all(
         keysList.map(function (key) {
-          if (key !== staticCacheName) {
+          if (key !== staticCacheName && key !== dataCacheName) {
             console.log('[ServiceWorker] Removing old cache', key)
             return caches.delete(key)
           }
@@ -55,10 +66,41 @@ self.addEventListener('activate', function (ev) {
 })
 
 self.addEventListener('fetch', function (ev) {
-  console.log('[Service Worker] Fetch', ev.request.url)
+  // console.log('[Service Worker] Fetch', ev.request.url)
+
+  var requestUrl = new URL(ev.request.url)
+  if (requestUrl.origin === location.origin) {
+    if (requestUrl.pathname === '/') {
+      ev.respondWith(caches.match('/'))
+      return
+    }
+
+    if (requestUrl.pathname.match(/^\/static\//)) {
+      // check in cache. if not found, network.
+      ev.respondWith(
+        caches.match(requestUrl.pathname)
+          .then((response) => {
+            return response || fetch(ev.request)
+          })
+      )
+      return
+    }
+  }
+
+  // data urls => network, then cache.
   ev.respondWith(
-    caches.match(ev.request).then(function(response) {
-      return response || fetch(ev.request)
-    })
+    caches.open(dataCacheName)
+      .then((cache) => {
+        return fetch(ev.request)
+          .then((response) => {
+            // valid response from network. update cache.
+            cache.put(ev.request, response.clone())
+            return response
+          })
+          .catch((reason) => {
+            // invalid response from network. fallback to cache.
+            return cache.match(ev.request)
+          })
+      })
   )
 })

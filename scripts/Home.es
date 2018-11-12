@@ -1,6 +1,16 @@
 /* global Vue */
 /* global hljs */
 
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then(function () {
+      console.log('Service Worker registered')
+    })
+}
+
+// Vue components
+
 Vue.component('folder-item', {
   props: [
     'folder',
@@ -202,6 +212,12 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     }
   },
   methods: {
+    startSpinner () {
+      // TODO: start spinner
+    },
+    stopSpinner () {
+      // TODO: stop spinner
+    },
     refreshFolders (resource) {
       this.$http.get('/folders').then((response) => {
         this.foldersList = response.data
@@ -375,10 +391,3 @@ window.onhashchange = function (ev) {
   notesApp.init()
 }
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker
-    .register('/static/sw.js')
-    .then(function () {
-      console.log('Service Worker registered')
-    })
-}
