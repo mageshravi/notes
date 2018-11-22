@@ -13,7 +13,7 @@
     "build:js": "npm run lint && npm run compile && npm run uglify",
     "build:lib": "bash/npm-build_lib.sh",
     "watch:css": "onchange 'scss/*.scss' -- npm run build:css",
-    "watch:js": "onchange 'scripts/*.js' 'scripts-es6/*.es' -- npm run build:js",
+    "watch:js": "onchange 'scripts/*.es' -- npm run build:js",
     "watch:all": "parallelshell 'npm run watch:css' 'npm run watch:js'",
     "scss:dev": "onerror 'node-sass -o static/css/ scss/' --title 'Error compiling SCSS' --icon error",
     "uglify:dev": "onerror 'uglifyjs scripts/*.js -o static/js/app.min.js' --title 'Error uglifying JS' --icon error",

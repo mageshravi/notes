@@ -3,6 +3,13 @@
 /* global Vue */
 
 /* global hljs */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(function () {
+    console.log('Service Worker registered');
+  });
+} // Vue components
+
+
 Vue.component('folder-item', {
   props: ['folder', 'selectedFolder'],
   template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n       v-bind:href=\"route\"\n       v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
@@ -131,6 +138,10 @@ var notesApp = new Vue({
     }
   },
   methods: {
+    startSpinner: function startSpinner() {// TODO: start spinner
+    },
+    stopSpinner: function stopSpinner() {// TODO: stop spinner
+    },
     refreshFolders: function refreshFolders(resource) {
       var _this = this;
 
