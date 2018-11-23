@@ -50,7 +50,4 @@ cp normalize.css/normalize.css ${LIB_DIR}/
 echo " |- Vue.js"
 cp vue/dist/vue.min.js ${LIB_DIR}/
 
-echo " |- Vue-resource.js"
-cp vue-resource/dist/vue-resource.min.js ${LIB_DIR}/
-
 source ${BASE_DIR}/bash/npm-bundle_lib.sh

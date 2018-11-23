@@ -21,7 +21,7 @@ cat ${LIB_DIR}/*.css > ${OUTPUT_DIR}/css/lib.css
 echo " |- js/lib.js"
 rm ${OUTPUT_DIR}/js/lib.js
 # Order of JS files is very important.
-for file in "vue.min.js" "vue-resource.min.js"
+for file in "vue.min.js"
 do
     echo "  |- ${file}"
     (cat "${LIB_DIR}/${file}"; echo) >> ${OUTPUT_DIR}/js/lib.js

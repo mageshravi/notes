@@ -1,6 +1,12 @@
 /* global Vue */
 /* global hljs */
 
+// VueJS is best used with requireJS/browserify when written with single-file components.
+// Hence including VueJS within a script tag, for now.
+
+import axios from 'axios'
+import NotesDB from './NotesDB'
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker
     .register('/sw.js')
@@ -195,6 +201,7 @@ Vue.component('note-detail', {
 var notesApp = new Vue({  // eslint-disable-line no-unused-vars
   el: '#notes-app',
   data: {
+    dbPopulated: false,
     foldersList: [],
     tagsList: [],
     notesList: [],
@@ -218,26 +225,74 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     stopSpinner () {
       // TODO: stop spinner
     },
-    refreshFolders (resource) {
-      this.$http.get('/folders').then((response) => {
+    populateDatabase (resource) {
+      // folders
+      axios.get('/folders').then(response => {
         this.foldersList = response.data
+
+        let notesDb = new NotesDB()
+        this.foldersList.forEach(folder => {
+          notesDb.addFolder(folder)
+        })
+
+        // notes in folders
+        this.foldersList.forEach(folder => {
+          axios.get(folder.url).then(response => {
+            notesDb.addNotesToFolder(response.data, folder.name)
+
+            // note detail
+            response.data.forEach(note => {
+              axios.get(note.url).then(response => {
+                notesDb.addNoteDetail(note)
+              })
+            })
+          })
+        })
+      })
+
+      // tags
+      axios.get('/tags').then(response => {
+        this.tagsList = response.data
+
+        let notesDb = new NotesDB()
+        this.tagsList.forEach(tag => {
+          notesDb.addTag(tag)
+        })
+
+        // notes with tags
+        this.tagsList.forEach(tag => {
+          axios.get(tag.url).then(response => {
+            notesDb.addNotesToTag(response.data, tag.handle)
+          })
+        })
+      })
+
+      this.dbPopulated = true
+    },
+    refreshFolders (resource) {
+      let notesDb = new NotesDB()
+      notesDb.getAllFolders().then(foldersList => {
+        this.foldersList = foldersList
       })
     },
     refreshTags (resource) {
-      this.$http.get('/tags').then((response) => {
-        this.tagsList = response.data
+      let notesDb = new NotesDB()
+      notesDb.getAllTags().then(tagsList => {
+        this.tagsList = tagsList
       })
     },
     getNotesInFolder (folderName) {
       folderName = encodeURIComponent(folderName)
-      this.$http.get(`/folders/${folderName}`).then((response) => {
-        this.notesList = response.data
+      let notesDb = new NotesDB()
+      notesDb.getNotesInFolder(folderName).then(notesList => {
+        this.notesList = notesList
       })
     },
     getNotesWithTag (tagHandle) {
       tagHandle = encodeURIComponent(tagHandle)
-      this.$http.get(`/tags/${tagHandle}`).then((response) => {
-        this.notesList = response.data
+      let notesDb = new NotesDB()
+      notesDb.getNotesWithTag(tagHandle).then(notesList => {
+        this.notesList = notesList
       })
     },
     folderChangeHandler (folderName) {
@@ -255,7 +310,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       this.getNotesWithTag(tagHandle)
     },
     noteChangeHandler (noteSlug) {
-      this.$http.get(`/notes/${noteSlug}`).then((response) => {
+      axios.get(`/notes/${noteSlug}`).then((response) => {
         this.noteDetail = response.data
       })
     },
@@ -288,6 +343,10 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       }
     },
     init () {
+      if (!this.dbPopulated) {
+        this.populateDatabase()
+      }
+
       if (!this.foldersList.length) {
         this.refreshFolders()
       }
@@ -325,7 +384,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         let noteSlug = noteMatch[1]
 
         // fetch note-detail
-        this.$http.get(`/notes/${noteSlug}`).then((response) => {
+        axios.get(`/notes/${noteSlug}`).then((response) => {
           this.noteDetail = response.data
           this.selectedNote = this.noteDetail.slug
           let folderName = this.noteDetail.folder.name
@@ -347,7 +406,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
             this.selectedFolder = folderName
 
             // fetch other notes in same folder
-            this.$http.get(`/folders/${folderName}`).then((response) => {
+            axios.get(`/folders/${folderName}`).then((response) => {
               this.notesList = response.data
               this.slideToMobilePanel('note-detail')
             })
@@ -358,19 +417,21 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       }
     },
     _noHashInit () {
-      this.$http.get('/folders').then((response) => {
-        this.foldersList = response.data
-
-        if (!this.foldersList.length) {
+      let notesDB = new NotesDB()
+      notesDB.getAllFolders().then((folders) => {
+        if (!folders.length) {
           return
         }
+
+        this.foldersList = folders
 
         // get notes in first folder
         let folderName = this.foldersList[0].name
         this.selectedFolder = folderName
-        this.$http.get(`/folders/${folderName}`).then((response) => {
-          this.notesList = response.data
-          if (this.notesList.length) {
+
+        notesDB.getNotesInFolder(folderName).then(notesList => {
+          this.notesList = notesList
+          if (notesList.length) {
             // get the first note
             let firstNoteSlug = this.notesList[0].slug
             this.selectedNote = firstNoteSlug
