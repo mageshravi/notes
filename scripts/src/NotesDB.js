@@ -9,7 +9,7 @@ class NotesDB { // eslint-disable-line no-unused-vars
           upgradeDB.createObjectStore('tags', {keyPath: 'id'})
           upgradeDB.createObjectStore('notesInFolders')
           upgradeDB.createObjectStore('notesWithTags')
-          upgradeDB.createObjectStore('noteDetail', {keyPath: 'id'})
+          upgradeDB.createObjectStore('noteDetail', {keyPath: 'slug'})
       }
     })
   }
@@ -88,6 +88,14 @@ class NotesDB { // eslint-disable-line no-unused-vars
       var tx = db.transaction('notesWithTags')
       var notesStore = tx.objectStore('notesWithTags')
       return notesStore.get(tagHandle)
+    })
+  }
+
+  getNoteDetail (noteSlug) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('noteDetail')
+      var noteDetailStore = tx.objectStore('noteDetail')
+      return noteDetailStore.get(noteSlug)
     })
   }
 }

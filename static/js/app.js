@@ -2120,7 +2120,7 @@ var notesApp = new Vue({
 
             response.data.forEach(function (note) {
               _axios.default.get(note.url).then(function (response) {
-                notesDb.addNoteDetail(note);
+                notesDb.addNoteDetail(response.data);
               });
             });
           });
@@ -2197,8 +2197,9 @@ var notesApp = new Vue({
     noteChangeHandler: function noteChangeHandler(noteSlug) {
       var _this6 = this;
 
-      _axios.default.get("/notes/".concat(noteSlug)).then(function (response) {
-        _this6.noteDetail = response.data;
+      var notesDb = new _NotesDB.default();
+      notesDb.getNoteDetail(noteSlug).then(function (noteDetail) {
+        _this6.noteDetail = noteDetail;
       });
     },
     slideToFoldersListInMobileView: function slideToFoldersListInMobileView(ev) {
@@ -2275,7 +2276,8 @@ var notesApp = new Vue({
       var noteMatch = window.location.hash.match(notePattern);
 
       if (noteMatch) {
-        var noteSlug = noteMatch[1]; // fetch note-detail
+        var noteSlug = noteMatch[1]; // TODO: continue from here
+        // fetch note-detail
 
         _axios.default.get("/notes/".concat(noteSlug)).then(function (response) {
           _this7.noteDetail = response.data;
@@ -2385,7 +2387,7 @@ function () {
           upgradeDB.createObjectStore('notesInFolders');
           upgradeDB.createObjectStore('notesWithTags');
           upgradeDB.createObjectStore('noteDetail', {
-            keyPath: 'id'
+            keyPath: 'slug'
           });
       }
     });
@@ -2475,6 +2477,15 @@ function () {
         var tx = db.transaction('notesWithTags');
         var notesStore = tx.objectStore('notesWithTags');
         return notesStore.get(tagHandle);
+      });
+    }
+  }, {
+    key: "getNoteDetail",
+    value: function getNoteDetail(noteSlug) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('noteDetail');
+        var noteDetailStore = tx.objectStore('noteDetail');
+        return noteDetailStore.get(noteSlug);
       });
     }
   }]);

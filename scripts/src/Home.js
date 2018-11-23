@@ -243,7 +243,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
             // note detail
             response.data.forEach(note => {
               axios.get(note.url).then(response => {
-                notesDb.addNoteDetail(note)
+                notesDb.addNoteDetail(response.data)
               })
             })
           })
@@ -310,8 +310,9 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       this.getNotesWithTag(tagHandle)
     },
     noteChangeHandler (noteSlug) {
-      axios.get(`/notes/${noteSlug}`).then((response) => {
-        this.noteDetail = response.data
+      let notesDb = new NotesDB()
+      notesDb.getNoteDetail(noteSlug).then(noteDetail => {
+        this.noteDetail = noteDetail
       })
     },
     slideToFoldersListInMobileView (ev) {
@@ -383,6 +384,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       if (noteMatch) {
         let noteSlug = noteMatch[1]
 
+        // TODO: continue from here
         // fetch note-detail
         axios.get(`/notes/${noteSlug}`).then((response) => {
           this.noteDetail = response.data
