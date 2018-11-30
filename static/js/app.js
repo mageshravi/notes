@@ -2146,38 +2146,82 @@ var notesApp = new Vue({
 
       this.dbPopulated = true;
     },
-    refreshFolders: function refreshFolders(resource) {
+    refreshFolders: function refreshFolders() {
       var _this2 = this;
+
+      var receivedNetworkData = false; // from idb
 
       var notesDb = new _NotesDB.default();
       notesDb.getAllFolders().then(function (foldersList) {
-        _this2.foldersList = foldersList;
+        if (!receivedNetworkData) {
+          _this2.foldersList = foldersList;
+        }
+      }); // from network
+
+      _axios.default.get('/folders').then(function (response) {
+        receivedNetworkData = true;
+        _this2.foldersList = response.data;
+      }).catch(function (err) {
+        console.log(" |- refresh folders ".concat(err));
       });
     },
-    refreshTags: function refreshTags(resource) {
+    refreshTags: function refreshTags() {
       var _this3 = this;
+
+      var receivedNetworkData = false; // from idb
 
       var notesDb = new _NotesDB.default();
       notesDb.getAllTags().then(function (tagsList) {
-        _this3.tagsList = tagsList;
+        if (!receivedNetworkData) {
+          _this3.tagsList = tagsList;
+        }
+      }); // from network
+
+      _axios.default.get('/tags').then(function (response) {
+        receivedNetworkData = true;
+        _this3.tagsList = response.data;
+      }).catch(function (err) {
+        console.log(" |- refresh tags ".concat(err));
       });
     },
     getNotesInFolder: function getNotesInFolder(folderName) {
       var _this4 = this;
 
       folderName = encodeURIComponent(folderName);
+      var receivedNetworkData = false; // from idb
+
       var notesDb = new _NotesDB.default();
       notesDb.getNotesInFolder(folderName).then(function (notesList) {
-        _this4.notesList = notesList;
+        if (!receivedNetworkData) {
+          _this4.notesList = notesList;
+        }
+      }); // from network
+
+      _axios.default.get("/folders/".concat(folderName)).then(function (response) {
+        receivedNetworkData = true;
+        _this4.notesList = response.data;
+      }).catch(function (err) {
+        console.log(" |- get notes in folder ".concat(folderName, ": ").concat(err));
       });
     },
     getNotesWithTag: function getNotesWithTag(tagHandle) {
       var _this5 = this;
 
       tagHandle = encodeURIComponent(tagHandle);
+      var receivedNetworkData = false; // from idb
+
       var notesDb = new _NotesDB.default();
       notesDb.getNotesWithTag(tagHandle).then(function (notesList) {
-        _this5.notesList = notesList;
+        if (!receivedNetworkData) {
+          _this5.notesList = notesList;
+        }
+      }); // from network
+
+      _axios.default.get("/tags/".concat(tagHandle)).then(function (response) {
+        receivedNetworkData = true;
+        _this5.notesList = response.data;
+      }).catch(function (err) {
+        console.log(" |- get notes with tag ".concat(tagHandle, ": ").concat(err));
       });
     },
     folderChangeHandler: function folderChangeHandler(folderName) {
@@ -2276,39 +2320,22 @@ var notesApp = new Vue({
       var noteMatch = window.location.hash.match(notePattern);
 
       if (noteMatch) {
-        var noteSlug = noteMatch[1]; // TODO: continue from here
-        // fetch note-detail
+        var noteSlug = noteMatch[1];
+        var notesDb = new _NotesDB.default();
+        var receivedNetworkData = false; // from idb
+
+        notesDb.getNoteDetail(noteSlug).then(function (noteDetail) {
+          if (!receivedNetworkData) {
+            _this7._noteDetailSuccessHandler(noteDetail);
+          }
+        }); // from network
 
         _axios.default.get("/notes/".concat(noteSlug)).then(function (response) {
-          _this7.noteDetail = response.data;
-          _this7.selectedNote = _this7.noteDetail.slug;
-          var folderName = _this7.noteDetail.folder.name;
-          var isParentFolderSelected = folderName === _this7.selectedFolder;
-          var isTagSelected = false;
+          receivedNetworkData = true;
 
-          for (var i = 0; i < _this7.noteDetail.tags.length; i++) {
-            var curTag = _this7.noteDetail.tags[i];
-
-            if (curTag.handle === _this7.selectedTag) {
-              isTagSelected = true;
-            }
-          }
-
-          if (!isTagSelected) {
-            _this7.selectedTag = false;
-          }
-
-          if (!isParentFolderSelected && !isTagSelected) {
-            _this7.selectedFolder = folderName; // fetch other notes in same folder
-
-            _axios.default.get("/folders/".concat(folderName)).then(function (response) {
-              _this7.notesList = response.data;
-
-              _this7.slideToMobilePanel('note-detail');
-            });
-          } else {
-            _this7.slideToMobilePanel('note-detail');
-          }
+          _this7._noteDetailSuccessHandler(response.data);
+        }).catch(function (err) {
+          console.log(" |- note-detail ".concat(err));
         });
       }
     },
@@ -2339,6 +2366,65 @@ var notesApp = new Vue({
           _this8.slideToMobilePanel('folders-list');
         });
       });
+    },
+
+    /**
+     * Success handler for a promise dealing with note-detail (on inital load only)
+     * @param {Object} noteDetail The note detail object
+     */
+    _noteDetailSuccessHandler: function _noteDetailSuccessHandler(noteDetail) {
+      var _this9 = this;
+
+      this.noteDetail = noteDetail;
+      this.selectedNote = this.noteDetail.slug;
+      var folderName = this.noteDetail.folder.name;
+      var isParentFolderSelected = folderName === this.selectedFolder;
+      var isTagSelected = false;
+
+      for (var i = 0; i < this.noteDetail.tags.length; i++) {
+        var curTag = this.noteDetail.tags[i];
+
+        if (curTag.handle === this.selectedTag) {
+          isTagSelected = true;
+        }
+      }
+
+      if (!isTagSelected) {
+        this.selectedTag = false;
+      }
+
+      if (!isParentFolderSelected && !isTagSelected) {
+        this.selectedFolder = folderName; // get other notes in same folder
+        // from idb
+
+        var receivedNetworkData = false;
+        var notesDb = new _NotesDB.default();
+        notesDb.getNotesInFolder(folderName).then(function (notesList) {
+          if (!receivedNetworkData) {
+            _this9._notesInFolderSuccessHandler(notesList);
+          }
+        }); // from network
+
+        _axios.default.get("/folders/".concat(folderName)).then(function (response) {
+          receivedNetworkData = true;
+
+          _this9._notesInFolderSuccessHandler(response.data);
+        }).catch(function (err) {
+          console.log(" |- get notes in folder ".concat(folderName, ": ").concat(err));
+        });
+      } else {
+        this.slideToMobilePanel('note-detail');
+      }
+    },
+
+    /**
+     * Success handler for a promise dealing with notes-in-folder (on initial load only)
+     * @param {Object} notesList The list of notes in a specific folder
+     * @param {Boolean} animate Flag to denote if animation is required
+     */
+    _notesInFolderSuccessHandler: function _notesInFolderSuccessHandler(notesList) {
+      this.notesList = notesList;
+      this.slideToMobilePanel('note-detail');
     }
   },
   beforeMount: function beforeMount() {
