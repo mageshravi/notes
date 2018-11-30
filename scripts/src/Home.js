@@ -1,6 +1,12 @@
 /* global Vue */
 /* global hljs */
 
+// VueJS is best used with requireJS/browserify when written with single-file components.
+// Hence including VueJS within a script tag, for now.
+
+import axios from 'axios'
+import NotesDB from './NotesDB'
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker
     .register('/sw.js')
@@ -195,6 +201,7 @@ Vue.component('note-detail', {
 var notesApp = new Vue({  // eslint-disable-line no-unused-vars
   el: '#notes-app',
   data: {
+    dbPopulated: false,
     foldersList: [],
     tagsList: [],
     notesList: [],
@@ -218,27 +225,136 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     stopSpinner () {
       // TODO: stop spinner
     },
-    refreshFolders (resource) {
-      this.$http.get('/folders').then((response) => {
+    populateDatabase (resource) {
+      // folders
+      axios.get('/folders').then(response => {
         this.foldersList = response.data
+
+        let notesDb = new NotesDB()
+        this.foldersList.forEach(folder => {
+          notesDb.addFolder(folder)
+        })
+
+        // notes in folders
+        this.foldersList.forEach(folder => {
+          axios.get(folder.url).then(response => {
+            notesDb.addNotesToFolder(response.data, folder.name)
+
+            // note detail
+            response.data.forEach(note => {
+              axios.get(note.url).then(response => {
+                notesDb.addNoteDetail(response.data)
+              })
+            })
+          })
+        })
       })
-    },
-    refreshTags (resource) {
-      this.$http.get('/tags').then((response) => {
+
+      // tags
+      axios.get('/tags').then(response => {
         this.tagsList = response.data
+
+        let notesDb = new NotesDB()
+        this.tagsList.forEach(tag => {
+          notesDb.addTag(tag)
+        })
+
+        // notes with tags
+        this.tagsList.forEach(tag => {
+          axios.get(tag.url).then(response => {
+            notesDb.addNotesToTag(response.data, tag.handle)
+          })
+        })
       })
+
+      this.dbPopulated = true
+    },
+    refreshFolders () {
+      let receivedNetworkData = false
+
+      // from idb
+      let notesDb = new NotesDB()
+      notesDb.getAllFolders().then(foldersList => {
+        if (!receivedNetworkData) {
+          this.foldersList = foldersList
+        }
+      })
+
+      // from network
+      axios.get('/folders')
+        .then(response => {
+          receivedNetworkData = true
+          this.foldersList = response.data
+        })
+        .catch(err => {
+          console.log(` |- refresh folders ${err}`)
+        })
+    },
+    refreshTags () {
+      let receivedNetworkData = false
+
+      // from idb
+      let notesDb = new NotesDB()
+      notesDb.getAllTags().then(tagsList => {
+        if (!receivedNetworkData) {
+          this.tagsList = tagsList
+        }
+      })
+
+      // from network
+      axios.get('/tags')
+        .then(response => {
+          receivedNetworkData = true
+          this.tagsList = response.data
+        })
+        .catch(err => {
+          console.log(` |- refresh tags ${err}`)
+        })
     },
     getNotesInFolder (folderName) {
       folderName = encodeURIComponent(folderName)
-      this.$http.get(`/folders/${folderName}`).then((response) => {
-        this.notesList = response.data
-      })
+      let receivedNetworkData = false
+
+      // from idb
+      let notesDb = new NotesDB()
+      notesDb.getNotesInFolder(folderName)
+        .then(notesList => {
+          if (!receivedNetworkData) {
+            this.notesList = notesList
+          }
+        })
+
+      // from network
+      axios.get(`/folders/${folderName}`)
+        .then(response => {
+          receivedNetworkData = true
+          this.notesList = response.data
+        })
+        .catch(err => {
+          console.log(` |- get notes in folder ${folderName}: ${err}`)
+        })
     },
     getNotesWithTag (tagHandle) {
       tagHandle = encodeURIComponent(tagHandle)
-      this.$http.get(`/tags/${tagHandle}`).then((response) => {
-        this.notesList = response.data
+      let receivedNetworkData = false
+
+      // from idb
+      let notesDb = new NotesDB()
+      notesDb.getNotesWithTag(tagHandle).then(notesList => {
+        if (!receivedNetworkData) {
+          this.notesList = notesList
+        }
       })
+
+      // from network
+      axios.get(`/tags/${tagHandle}`)
+        .then(response => {
+          receivedNetworkData = true
+          this.notesList = response.data
+        })
+        .catch(err => {
+          console.log(` |- get notes with tag ${tagHandle}: ${err}`)
+        })
     },
     folderChangeHandler (folderName) {
       this.selectedFolder = folderName
@@ -255,8 +371,9 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       this.getNotesWithTag(tagHandle)
     },
     noteChangeHandler (noteSlug) {
-      this.$http.get(`/notes/${noteSlug}`).then((response) => {
-        this.noteDetail = response.data
+      let notesDb = new NotesDB()
+      notesDb.getNoteDetail(noteSlug).then(noteDetail => {
+        this.noteDetail = noteDetail
       })
     },
     slideToFoldersListInMobileView (ev) {
@@ -288,6 +405,10 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       }
     },
     init () {
+      if (!this.dbPopulated) {
+        this.populateDatabase()
+      }
+
       if (!this.foldersList.length) {
         this.refreshFolders()
       }
@@ -324,53 +445,43 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       if (noteMatch) {
         let noteSlug = noteMatch[1]
 
-        // fetch note-detail
-        this.$http.get(`/notes/${noteSlug}`).then((response) => {
-          this.noteDetail = response.data
-          this.selectedNote = this.noteDetail.slug
-          let folderName = this.noteDetail.folder.name
-          let isParentFolderSelected = (folderName === this.selectedFolder)
+        let notesDb = new NotesDB()
+        let receivedNetworkData = false
 
-          let isTagSelected = false
-          for (let i = 0; i < this.noteDetail.tags.length; i++) {
-            let curTag = this.noteDetail.tags[i]
-            if (curTag.handle === this.selectedTag) {
-              isTagSelected = true
-            }
-          }
-
-          if (!isTagSelected) {
-            this.selectedTag = false
-          }
-
-          if (!isParentFolderSelected && !isTagSelected) {
-            this.selectedFolder = folderName
-
-            // fetch other notes in same folder
-            this.$http.get(`/folders/${folderName}`).then((response) => {
-              this.notesList = response.data
-              this.slideToMobilePanel('note-detail')
-            })
-          } else {
-            this.slideToMobilePanel('note-detail')
+        // from idb
+        notesDb.getNoteDetail(noteSlug).then(noteDetail => {
+          if (!receivedNetworkData) {
+            this._noteDetailSuccessHandler(noteDetail)
           }
         })
+
+        // from network
+        axios.get(`/notes/${noteSlug}`)
+          .then(response => {
+            receivedNetworkData = true
+            this._noteDetailSuccessHandler(response.data)
+          })
+          .catch(err => {
+            console.log(` |- note-detail ${err}`)
+          })
       }
     },
     _noHashInit () {
-      this.$http.get('/folders').then((response) => {
-        this.foldersList = response.data
-
-        if (!this.foldersList.length) {
+      let notesDB = new NotesDB()
+      notesDB.getAllFolders().then((folders) => {
+        if (!folders.length) {
           return
         }
+
+        this.foldersList = folders
 
         // get notes in first folder
         let folderName = this.foldersList[0].name
         this.selectedFolder = folderName
-        this.$http.get(`/folders/${folderName}`).then((response) => {
-          this.notesList = response.data
-          if (this.notesList.length) {
+
+        notesDB.getNotesInFolder(folderName).then(notesList => {
+          this.notesList = notesList
+          if (notesList.length) {
             // get the first note
             let firstNoteSlug = this.notesList[0].slug
             this.selectedNote = firstNoteSlug
@@ -380,6 +491,64 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
           this.slideToMobilePanel('folders-list')
         })
       })
+    },
+    /**
+     * Success handler for a promise dealing with note-detail (on inital load only)
+     * @param {Object} noteDetail The note detail object
+     */
+    _noteDetailSuccessHandler (noteDetail) {
+      this.noteDetail = noteDetail
+      this.selectedNote = this.noteDetail.slug
+      let folderName = this.noteDetail.folder.name
+      let isParentFolderSelected = (folderName === this.selectedFolder)
+
+      let isTagSelected = false
+      for (let i = 0; i < this.noteDetail.tags.length; i++) {
+        let curTag = this.noteDetail.tags[i]
+        if (curTag.handle === this.selectedTag) {
+          isTagSelected = true
+        }
+      }
+
+      if (!isTagSelected) {
+        this.selectedTag = false
+      }
+
+      if (!isParentFolderSelected && !isTagSelected) {
+        this.selectedFolder = folderName
+
+        // get other notes in same folder
+
+        // from idb
+        let receivedNetworkData = false
+        let notesDb = new NotesDB()
+        notesDb.getNotesInFolder(folderName).then(notesList => {
+          if (!receivedNetworkData) {
+            this._notesInFolderSuccessHandler(notesList)
+          }
+        })
+
+        // from network
+        axios.get(`/folders/${folderName}`)
+          .then(response => {
+            receivedNetworkData = true
+            this._notesInFolderSuccessHandler(response.data)
+          })
+          .catch(err => {
+            console.log(` |- get notes in folder ${folderName}: ${err}`)
+          })
+      } else {
+        this.slideToMobilePanel('note-detail')
+      }
+    },
+    /**
+     * Success handler for a promise dealing with notes-in-folder (on initial load only)
+     * @param {Object} notesList The list of notes in a specific folder
+     * @param {Boolean} animate Flag to denote if animation is required
+     */
+    _notesInFolderSuccessHandler (notesList) {
+      this.notesList = notesList
+      this.slideToMobilePanel('note-detail')
     }
   },
   beforeMount () {

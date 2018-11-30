@@ -1,5 +1,4 @@
-var staticCacheName = 'notes-static-v1';    // this is the cache version. do not confuse with the app version
-var dataCacheName = 'notes-data-v1';
+var staticCacheName = 'notes-static-v1.1';    // this is the cache version. do not confuse with the app version
 
 var filesToCache = [
   '/',
@@ -13,9 +12,11 @@ var filesToCache = [
   '/static/fonts/inter-ui/inter-ui.css',
   '/static/fonts/fira-code/fira_code.css',
   '/static/fonts/inter-ui/Inter-UI-Bold.woff2',
+  '/static/fonts/inter-ui/Inter-UI-Italic.woff2',
   '/static/fonts/inter-ui/Inter-UI-Regular.woff2',
   '/static/fonts/fira-code/woff2/FiraCode-Regular.woff2',
   '/static/fonts/fira-code/woff2/FiraCode-Bold.woff2',
+  '/static/fonts/fontawesome-webfont.woff2?v=4.7.0',
   '/static/images/creampaper.png',
   '/static/images/creampaper_@2X.png',
   '/static/images/debut_dark.png',
@@ -23,11 +24,6 @@ var filesToCache = [
   '/static/wicons/notes/152x152.png',
   '/static/wicons/notes/iphone-retina.png',
   '/static/wicons/notes/ipad-retina.png',
-]
-
-var dataToCache = [
-  '/folders',
-  '/tags',
 ]
 
 self.addEventListener('install', function (ev) {
@@ -38,11 +34,6 @@ self.addEventListener('install', function (ev) {
         console.log('[ServiceWorker] Caching app shell');
         return cache.addAll(filesToCache)
       }),
-
-    caches.open(dataCacheName)
-      .then(function (cache) {
-        return cache.addAll(dataToCache)
-      })
   )
 });
 
@@ -53,7 +44,7 @@ self.addEventListener('activate', function (ev) {
     .then(function (keysList) {
       return Promise.all(
         keysList.map(function (key) {
-          if (key !== staticCacheName && key !== dataCacheName) {
+          if (key !== staticCacheName) {
             console.log('[ServiceWorker] Removing old cache', key)
             return caches.delete(key)
           }
@@ -86,21 +77,4 @@ self.addEventListener('fetch', function (ev) {
       return
     }
   }
-
-  // data urls => network, then cache.
-  ev.respondWith(
-    caches.open(dataCacheName)
-      .then((cache) => {
-        return fetch(ev.request)
-          .then((response) => {
-            // valid response from network. update cache.
-            cache.put(ev.request, response.clone())
-            return response
-          })
-          .catch((reason) => {
-            // invalid response from network. fallback to cache.
-            return cache.match(ev.request)
-          })
-      })
-  )
 })
