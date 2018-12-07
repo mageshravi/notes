@@ -7,15 +7,71 @@
 import axios from 'axios'
 import NotesDB from './NotesDB'
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker
-    .register('/sw.js')
-    .then(function () {
-      console.log('Service Worker registered')
-    })
-}
+let newWorker
+
+window.isUpdateAvailable = new Promise((resolve, reject) => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('Service Worker registered')
+
+        reg.addEventListener('updatefound', () => {
+          newWorker = reg.installing
+          newWorker.addEventListener('statechange', () => {
+            switch (newWorker.state) {
+              case 'installed':
+                if (navigator.serviceWorker.controller) {
+                  // new update available
+                  resolve(true)
+                } else {
+                  // no update available
+                  resolve(false)
+                }
+                break
+            }
+          })
+        })
+      })
+      .catch(err => {
+        console.error('ServiceWorker registration failed', err)
+      })
+  }
+})
 
 // Vue components
+
+Vue.component('update-notification', {
+  props: [
+    'updateAvailable',
+    'dismissed'
+  ],
+  template: `
+  <div id="app-update-available" class="m-banner-notification"
+      v-bind:class="{'is-visible': isVisible}">
+    <p class="m-banner-notification__message">An update is available</p>
+    <div class="m-banner-notification__btn-wrapper">
+      <button id="update-app" class="m-btn"
+        v-on:click="update">Update</button>&nbsp;
+      <button class="m-btn"
+        v-on:click="dismiss">Later</button>
+    </div>
+  </div>
+  `,
+  computed: {
+    isVisible: function () {
+      return (this.updateAvailable && !this.dismissed)
+    }
+  },
+  methods: {
+    dismiss () {
+      this.dismissed = true
+    },
+    update () {
+      newWorker.postMessage({action: 'skipWaiting'})
+      this.updateAvailable = false
+    }
+  }
+})
 
 Vue.component('folder-item', {
   props: [
@@ -201,6 +257,8 @@ Vue.component('note-detail', {
 var notesApp = new Vue({  // eslint-disable-line no-unused-vars
   el: '#notes-app',
   data: {
+    updateAvailable: false,
+    updateNotificationDismissed: false,
     dbPopulated: false,
     foldersList: [],
     tagsList: [],
@@ -226,6 +284,10 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       // TODO: stop spinner
     },
     populateDatabase (resource) {
+      if (this.dbPopulated) {
+        return
+      }
+
       // folders
       axios.get('/folders').then(response => {
         this.foldersList = response.data
@@ -285,6 +347,8 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         .then(response => {
           receivedNetworkData = true
           this.foldersList = response.data
+
+          notesDb.addFolders(this.foldersList)
         })
         .catch(err => {
           console.log(` |- refresh folders ${err}`)
@@ -306,6 +370,8 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         .then(response => {
           receivedNetworkData = true
           this.tagsList = response.data
+
+          notesDb.addTags(this.tagsList)
         })
         .catch(err => {
           console.log(` |- refresh tags ${err}`)
@@ -329,6 +395,8 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         .then(response => {
           receivedNetworkData = true
           this.notesList = response.data
+
+          notesDb.addNotesToFolder(this.notesList, folderName)
         })
         .catch(err => {
           console.log(` |- get notes in folder ${folderName}: ${err}`)
@@ -351,6 +419,8 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         .then(response => {
           receivedNetworkData = true
           this.notesList = response.data
+
+          notesDb.addNotesToTag(this.notesList, tagHandle)
         })
         .catch(err => {
           console.log(` |- get notes with tag ${tagHandle}: ${err}`)
@@ -459,6 +529,9 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         axios.get(`/notes/${noteSlug}`)
           .then(response => {
             receivedNetworkData = true
+            // update idb with latest response
+            notesDb.addNoteDetail(response.data)
+
             this._noteDetailSuccessHandler(response.data)
           })
           .catch(err => {
@@ -532,6 +605,9 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
         axios.get(`/folders/${folderName}`)
           .then(response => {
             receivedNetworkData = true
+            // update idb with latest response
+            notesDb.addNotesToFolder(response.data, folderName)
+
             this._notesInFolderSuccessHandler(response.data)
           })
           .catch(err => {
@@ -560,3 +636,9 @@ window.onhashchange = function (ev) {
   notesApp.init()
 }
 
+window['isUpdateAvailable']
+  .then(isAvailable => {
+    if (isAvailable) {
+      notesApp.updateAvailable = true
+    }
+  })

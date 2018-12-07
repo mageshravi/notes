@@ -14,12 +14,24 @@ class NotesDB { // eslint-disable-line no-unused-vars
     })
   }
 
+  addFolders (foldersList) {
+    foldersList.forEach(folder => {
+      this.addFolder(folder)
+    })
+  }
+
   addFolder (folder) {
     this.dbPromise.then(db => {
       var tx = db.transaction('folders', 'readwrite')
       var folderStore = tx.objectStore('folders')
       folderStore.put(folder)
       return tx.complete
+    })
+  }
+
+  addTags (tagsList) {
+    tagsList.forEach(tag => {
+      this.addTag(tag)
     })
   }
 

@@ -1,4 +1,4 @@
-var staticCacheName = 'notes-static-v1.1';    // this is the cache version. do not confuse with the app version
+var staticCacheName = 'notes-static-v1.2';    // this is the cache version. do not confuse with the app version
 
 var filesToCache = [
   '/',
@@ -76,5 +76,11 @@ self.addEventListener('fetch', function (ev) {
       )
       return
     }
+  }
+})
+
+self.addEventListener('message', event => {
+  if (event.data.action === 'skipWaiting') {
+    self.skipWaiting()
   }
 })

@@ -1961,13 +1961,54 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 /* global hljs */
 // VueJS is best used with requireJS/browserify when written with single-file components.
 // Hence including VueJS within a script tag, for now.
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(function () {
-    console.log('Service Worker registered');
-  });
-} // Vue components
+var newWorker;
+window.isUpdateAvailable = new Promise(function (resolve, reject) {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(function (reg) {
+      console.log('Service Worker registered');
+      reg.addEventListener('updatefound', function () {
+        newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function () {
+          switch (newWorker.state) {
+            case 'installed':
+              if (navigator.serviceWorker.controller) {
+                // new update available
+                resolve(true);
+              } else {
+                // no update available
+                resolve(false);
+              }
 
+              break;
+          }
+        });
+      });
+    }).catch(function (err) {
+      console.error('ServiceWorker registration failed', err);
+    });
+  }
+}); // Vue components
 
+Vue.component('update-notification', {
+  props: ['updateAvailable', 'dismissed'],
+  template: "\n  <div id=\"app-update-available\" class=\"m-banner-notification\" \n      v-bind:class=\"{'is-visible': isVisible}\">\n    <p class=\"m-banner-notification__message\">An update is available</p>\n    <div class=\"m-banner-notification__btn-wrapper\">\n      <button id=\"update-app\" class=\"m-btn\"\n        v-on:click=\"update\">Update</button>&nbsp;\n      <button class=\"m-btn\"\n        v-on:click=\"dismiss\">Later</button>\n    </div>\n  </div>\n  ",
+  computed: {
+    isVisible: function isVisible() {
+      return this.updateAvailable && !this.dismissed;
+    }
+  },
+  methods: {
+    dismiss: function dismiss() {
+      this.dismissed = true;
+    },
+    update: function update() {
+      newWorker.postMessage({
+        action: 'skipWaiting'
+      });
+      this.updateAvailable = false;
+    }
+  }
+});
 Vue.component('folder-item', {
   props: ['folder', 'selectedFolder'],
   template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n       v-bind:href=\"route\"\n       v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
@@ -2079,6 +2120,8 @@ var notesApp = new Vue({
   // eslint-disable-line no-unused-vars
   el: '#notes-app',
   data: {
+    updateAvailable: false,
+    updateNotificationDismissed: false,
     dbPopulated: false,
     foldersList: [],
     tagsList: [],
@@ -2104,7 +2147,11 @@ var notesApp = new Vue({
     populateDatabase: function populateDatabase(resource) {
       var _this = this;
 
-      // folders
+      if (this.dbPopulated) {
+        return;
+      } // folders
+
+
       _axios.default.get('/folders').then(function (response) {
         _this.foldersList = response.data;
         var notesDb = new _NotesDB.default();
@@ -2161,6 +2208,7 @@ var notesApp = new Vue({
       _axios.default.get('/folders').then(function (response) {
         receivedNetworkData = true;
         _this2.foldersList = response.data;
+        notesDb.addFolders(_this2.foldersList);
       }).catch(function (err) {
         console.log(" |- refresh folders ".concat(err));
       });
@@ -2180,6 +2228,7 @@ var notesApp = new Vue({
       _axios.default.get('/tags').then(function (response) {
         receivedNetworkData = true;
         _this3.tagsList = response.data;
+        notesDb.addTags(_this3.tagsList);
       }).catch(function (err) {
         console.log(" |- refresh tags ".concat(err));
       });
@@ -2200,6 +2249,7 @@ var notesApp = new Vue({
       _axios.default.get("/folders/".concat(folderName)).then(function (response) {
         receivedNetworkData = true;
         _this4.notesList = response.data;
+        notesDb.addNotesToFolder(_this4.notesList, folderName);
       }).catch(function (err) {
         console.log(" |- get notes in folder ".concat(folderName, ": ").concat(err));
       });
@@ -2220,6 +2270,7 @@ var notesApp = new Vue({
       _axios.default.get("/tags/".concat(tagHandle)).then(function (response) {
         receivedNetworkData = true;
         _this5.notesList = response.data;
+        notesDb.addNotesToTag(_this5.notesList, tagHandle);
       }).catch(function (err) {
         console.log(" |- get notes with tag ".concat(tagHandle, ": ").concat(err));
       });
@@ -2331,7 +2382,9 @@ var notesApp = new Vue({
         }); // from network
 
         _axios.default.get("/notes/".concat(noteSlug)).then(function (response) {
-          receivedNetworkData = true;
+          receivedNetworkData = true; // update idb with latest response
+
+          notesDb.addNoteDetail(response.data);
 
           _this7._noteDetailSuccessHandler(response.data);
         }).catch(function (err) {
@@ -2406,7 +2459,9 @@ var notesApp = new Vue({
         }); // from network
 
         _axios.default.get("/folders/".concat(folderName)).then(function (response) {
-          receivedNetworkData = true;
+          receivedNetworkData = true; // update idb with latest response
+
+          notesDb.addNotesToFolder(response.data, folderName);
 
           _this9._notesInFolderSuccessHandler(response.data);
         }).catch(function (err) {
@@ -2435,6 +2490,12 @@ var notesApp = new Vue({
 window.onhashchange = function (ev) {
   notesApp.init();
 };
+
+window['isUpdateAvailable'].then(function (isAvailable) {
+  if (isAvailable) {
+    notesApp.updateAvailable = true;
+  }
+});
 },{"./NotesDB":30,"axios":1}],30:[function(require,module,exports){
 "use strict";
 
@@ -2480,6 +2541,15 @@ function () {
   }
 
   _createClass(NotesDB, [{
+    key: "addFolders",
+    value: function addFolders(foldersList) {
+      var _this = this;
+
+      foldersList.forEach(function (folder) {
+        _this.addFolder(folder);
+      });
+    }
+  }, {
     key: "addFolder",
     value: function addFolder(folder) {
       this.dbPromise.then(function (db) {
@@ -2487,6 +2557,15 @@ function () {
         var folderStore = tx.objectStore('folders');
         folderStore.put(folder);
         return tx.complete;
+      });
+    }
+  }, {
+    key: "addTags",
+    value: function addTags(tagsList) {
+      var _this2 = this;
+
+      tagsList.forEach(function (tag) {
+        _this2.addTag(tag);
       });
     }
   }, {

@@ -1,1 +1,141 @@
-@import url(/static/fonts/inter-ui/inter-ui.css);@import url(/static/fonts/fira-code/fira_code.css);html,body,h1,h2,h3,h4,h5,h6,p{font-family:'Inter UI', sans-serif;-webkit-font-kerning:normal;font-kerning:normal}code{font-family:'Fira Code', monospace !important;line-height:1.3}*{box-sizing:border-box}html{background:url("/static/images/debut_dark.png");background-repeat:repeat}@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi){html{background:url("/static/images/debut_dark_@2X.png")}}html,body{margin:0;padding:0}h1{font-size:1.515em;letter-spacing:-0.013em}h2{font-size:1.319em;letter-spacing:-0.011em}h3{font-size:1.148em;letter-spacing:-0.008em}h4{font-size:1em;letter-spacing:-0.004em}h5{font-size:0.87em;letter-spacing:0.001em}h6{font-size:0.757em;letter-spacing:0.008em}p{font-size:0.87em;letter-spacing:0.008em;line-height:1.4}a{color:#3991d9}a:visited{color:#5b468b}code{font-size:0.875em !important;border-radius:4px;overflow:auto}[v-cloak]{display:none}.l-wrapper{min-height:100vh;display:-ms-flexbox;display:flex;overflow-x:hidden;transition:margin-left .25s linear}@media (max-width: 767px){.l-wrapper.folders-visible{margin-left:0;transition:margin-left .25s linear}.l-wrapper.folders-visible .l-notes,.l-wrapper.folders-visible .l-note-detail{max-height:100vh}.l-wrapper.notes-list-visible{margin-left:-100vw;transition:margin-left .25s linear}.l-wrapper.notes-list-visible .l-folders,.l-wrapper.notes-list-visible .l-note-detail{max-height:100vh}.l-wrapper.note-detail-visible{margin-left:-200vw;transition:margin-left .25s linear}.l-wrapper.note-detail-visible .l-folders,.l-wrapper.note-detail-visible .l-notes{max-height:100vh}}.l-folders{width:100vw;overflow:auto;background:url("/static/images/debut_dark.png");background-repeat:repeat;-ms-flex-negative:0;flex-shrink:0}@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi){.l-folders{background:url("/static/images/debut_dark_@2X.png")}}@media (min-width: 768px){.l-folders{width:200px;max-height:100vh}}.l-notes{width:100vw;overflow:auto;background:url("/static/images/creampaper.png");-ms-flex-negative:0;flex-shrink:0}@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi){.l-notes{background:url("/static/images/creampaper_@2X.png")}}@media (min-width: 768px){.l-notes{width:350px;max-height:100vh}}.l-note-detail{width:100vw;overflow:auto;background:url("/static/images/creampaper.png");-ms-flex-negative:0;flex-shrink:0}@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi){.l-note-detail{background:url("/static/images/creampaper_@2X.png")}}@media (min-width: 768px){.l-note-detail{-ms-flex-negative:1;flex-shrink:1;max-height:100vh}}
+@import url(/static/fonts/inter-ui/inter-ui.css);
+@import url(/static/fonts/fira-code/fira_code.css);
+html, body, h1, h2, h3, h4, h5, h6, p {
+  font-family: 'Inter UI', sans-serif;
+  -webkit-font-kerning: normal;
+          font-kerning: normal; }
+
+code {
+  font-family: 'Fira Code', monospace !important;
+  line-height: 1.3; }
+
+/* SMACSS themes (colors) */
+/* all color variables go here */
+/* links */
+/* banner notification */
+/* SMACSS base and layout */
+* {
+  box-sizing: border-box; }
+
+html {
+  background: url("/static/images/debut_dark.png");
+  background-repeat: repeat; }
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    html {
+      background: url("/static/images/debut_dark_@2X.png"); } }
+
+html, body {
+  margin: 0;
+  padding: 0; }
+
+h1 {
+  font-size: 1.515em;
+  letter-spacing: -0.013em; }
+
+h2 {
+  font-size: 1.319em;
+  letter-spacing: -0.011em; }
+
+h3 {
+  font-size: 1.148em;
+  letter-spacing: -0.008em; }
+
+h4 {
+  font-size: 1em;
+  letter-spacing: -0.004em; }
+
+h5 {
+  font-size: 0.87em;
+  letter-spacing: 0.001em; }
+
+h6 {
+  font-size: 0.757em;
+  letter-spacing: 0.008em; }
+
+p {
+  font-size: 0.87em;
+  letter-spacing: 0.008em;
+  line-height: 1.4; }
+
+a {
+  color: #3991d9; }
+  a:visited {
+    color: #5b468b; }
+
+code {
+  font-size: 0.875em !important;
+  border-radius: 4px;
+  overflow: auto; }
+
+[v-cloak] {
+  display: none; }
+
+.l-wrapper {
+  min-height: 100vh;
+  display: -ms-flexbox;
+  display: flex;
+  overflow-x: hidden;
+  transition: margin-left .25s linear; }
+  @media (max-width: 767px) {
+    .l-wrapper.folders-visible {
+      margin-left: 0;
+      transition: margin-left .25s linear; }
+      .l-wrapper.folders-visible .l-notes,
+      .l-wrapper.folders-visible .l-note-detail {
+        max-height: 100vh; }
+    .l-wrapper.notes-list-visible {
+      margin-left: -100vw;
+      transition: margin-left .25s linear; }
+      .l-wrapper.notes-list-visible .l-folders,
+      .l-wrapper.notes-list-visible .l-note-detail {
+        max-height: 100vh; }
+    .l-wrapper.note-detail-visible {
+      margin-left: -200vw;
+      transition: margin-left .25s linear; }
+      .l-wrapper.note-detail-visible .l-folders,
+      .l-wrapper.note-detail-visible .l-notes {
+        max-height: 100vh; } }
+
+.l-folders {
+  width: 100vw;
+  overflow: auto;
+  background: url("/static/images/debut_dark.png");
+  background-repeat: repeat;
+  -ms-flex-negative: 0;
+      flex-shrink: 0; }
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .l-folders {
+      background: url("/static/images/debut_dark_@2X.png"); } }
+  @media (min-width: 768px) {
+    .l-folders {
+      width: 200px;
+      max-height: 100vh; } }
+
+.l-notes {
+  width: 100vw;
+  overflow: auto;
+  background: url("/static/images/creampaper.png");
+  -ms-flex-negative: 0;
+      flex-shrink: 0; }
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .l-notes {
+      background: url("/static/images/creampaper_@2X.png"); } }
+  @media (min-width: 768px) {
+    .l-notes {
+      width: 350px;
+      max-height: 100vh; } }
+
+.l-note-detail {
+  width: 100vw;
+  overflow: auto;
+  background: url("/static/images/creampaper.png");
+  -ms-flex-negative: 0;
+      flex-shrink: 0; }
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .l-note-detail {
+      background: url("/static/images/creampaper_@2X.png"); } }
+  @media (min-width: 768px) {
+    .l-note-detail {
+      -ms-flex-negative: 1;
+          flex-shrink: 1;
+      max-height: 100vh; } }
