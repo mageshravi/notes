@@ -1,4 +1,4 @@
-var staticCacheName = 'notes-static-v1.2';    // this is the cache version. do not confuse with the app version
+var staticCacheName = 'notes-static-v1.3';    // this is the cache version. do not confuse with the app version
 
 var filesToCache = [
   '/',
@@ -79,8 +79,47 @@ self.addEventListener('fetch', function (ev) {
   }
 })
 
+function send_message_to_client(client, msg) {
+  return new Promise((resolve, reject) => {
+    let msgChannel = new MessageChannel()
+
+    msgChannel.port1.onmessage = (ev) => {
+      if (ev.data.error) {
+        reject(ev.data.error)
+      } else {
+        resolve(ev.data)
+      }
+    }
+
+    client.postMessage(msg, [msgChannel.port2])
+  })
+}
+
+function send_message_to_all_clients(msg) {
+  clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      send_message_to_client(client, msg).then(msg => {
+        console.log('[ServiceWorker] Client received message:', msg)
+      })
+    })
+  })
+}
+
 self.addEventListener('message', event => {
   if (event.data.action === 'skipWaiting') {
     self.skipWaiting()
+
+    // let clients know to refresh page
+    send_message_to_all_clients({action:'page:reload'})
+  }
+
+  if (event.data.action === 'push-subscription:success') {
+    self.registration.showNotification(
+      'You are awesome',
+      {
+        body: 'Push notifications have been enabled on this device',
+        icon: 'https://i.imgur.com/MZM3K5w.png'
+      }
+    )
   }
 })

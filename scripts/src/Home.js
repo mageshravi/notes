@@ -1,20 +1,29 @@
 /* global Vue */
 /* global hljs */
+/* global Notification, Event */
 
 // VueJS is best used with requireJS/browserify when written with single-file components.
 // Hence including VueJS within a script tag, for now.
 
 import axios from 'axios'
 import NotesDB from './NotesDB'
+import NotesPushManager from './NotesPushManager'
 
 let newWorker
 
 window.isUpdateAvailable = new Promise((resolve, reject) => {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
+    let regPromise = navigator.serviceWorker.register('/sw.js')
+
+    regPromise
       .then(reg => {
         console.log('Service Worker registered')
 
+        // setup push notification
+        let notesPM = new NotesPushManager(reg)
+        notesPM.initialize()
+
+        // setup update prompts
         reg.addEventListener('updatefound', () => {
           newWorker = reg.installing
           newWorker.addEventListener('statechange', () => {
@@ -35,10 +44,53 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
       .catch(err => {
         console.error('ServiceWorker registration failed', err)
       })
+
+    // listen to messages from service worker
+    navigator.serviceWorker.addEventListener('message', (ev) => {
+      console.log('Message from service-worker:', ev.data)
+
+      if (!('action' in ev.data)) {
+        return
+      }
+
+      switch (ev.data.action) {
+        case 'page:reload':
+          window.location.reload()
+          break
+      }
+    })
   }
 })
 
 // Vue components
+
+Vue.component('push-prompt', {
+  props: [
+    'showPushPrompt'
+  ],
+  template: `
+  <div id="enable-push-prompt" class="m-push-prompt"
+    v-if="showPushPrompt">
+    <div class="m-push-prompt__content">
+      <img src="/static/wicons/push-notifications1.png"/>
+      <p>
+        This app relies on push notifications to keep your notes up-to-date on this device.
+      </p>
+      <button id="enable-push-notifications"
+        v-on:click="enablePushNotifications">Enable Push Notifications</button>
+    </div>
+  </div>
+  `,
+  methods: {
+    enablePushNotifications () {
+      console.log('Wohoo', NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION)
+
+      let ev = new Event(NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION)
+      document.dispatchEvent(ev)
+      this.show = false
+    }
+  }
+})
 
 Vue.component('update-notification', {
   props: [
@@ -259,6 +311,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
   data: {
     updateAvailable: false,
     updateNotificationDismissed: false,
+    showPushPrompt: (Notification.permission === 'default'),
     dbPopulated: false,
     foldersList: [],
     tagsList: [],

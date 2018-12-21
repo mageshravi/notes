@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'webpush',
     'ckeditor',
     'notes',
 ]
@@ -68,6 +69,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'notes.context_processors.vapid_attrs',
             ],
         },
     },
@@ -111,6 +113,16 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# WebPush settings
+# https://www.digitalocean.com/community/tutorials/how-to-send-web-push-notifications-from-django-applications
+
+WEBPUSH_SETTINGS = {
+    'VAPID_PUBLIC_KEY': os.environ.get('DJANGO_VAPID_PUBLIC_KEY'),
+    'VAPID_PRIVATE_KEY': os.environ.get('DJANGO_VAPID_PRIVATE_KEY'),
+    'VAPID_ADMIN_EMAIL': os.environ.get('DJANGO_VAPID_ADMIN_EMAIL')
+}
 
 
 # Internationalization

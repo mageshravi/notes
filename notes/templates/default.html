@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="apple-mobile-web-capable" content="yes">
+    <meta name="vapid-key" content="{{ vapid_key }}">
     <title>Notes</title>
     <link rel="stylesheet" href="{% static 'css/style_above_fold.css' %}">
     <link rel="apple-touch-icon" sizes="152x152" href="{% static 'wicons/notes/152x152.png' %}">
@@ -19,6 +20,7 @@
             v-bind:update-available="updateAvailable"
             v-bind:dismissed="updateNotificationDismissed">
         </update-notification>
+        <push-prompt v-bind:show-push-prompt="showPushPrompt"></push-prompt>
         <div class="l-wrapper">
             <div class="l-folders m-folders">
                 <h2 class="m-folders__title">Folders</h2>
