@@ -1991,7 +1991,7 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
 
 Vue.component('update-notification', {
   props: ['updateAvailable', 'dismissed'],
-  template: "\n  <div id=\"app-update-available\" class=\"m-banner-notification\" \n      v-bind:class=\"{'is-visible': isVisible}\">\n    <p class=\"m-banner-notification__message\">An update is available</p>\n    <div class=\"m-banner-notification__btn-wrapper\">\n      <button id=\"update-app\" class=\"m-btn\"\n        v-on:click=\"update\">Update</button>&nbsp;\n      <button class=\"m-btn\"\n        v-on:click=\"dismiss\">Later</button>\n    </div>\n  </div>\n  ",
+  template: "\n  <div id=\"app-update-available\" class=\"m-banner-notification\"\n      v-bind:class=\"{'is-visible': isVisible}\">\n    <p class=\"m-banner-notification__message\">An update is available</p>\n    <div class=\"m-banner-notification__btn-wrapper\">\n      <button id=\"update-app\" class=\"m-btn\"\n        v-on:click=\"update\">Update</button>&nbsp;\n      <button class=\"m-btn\"\n        v-on:click=\"dismiss\">Later</button>\n    </div>\n  </div>\n  ",
   computed: {
     isVisible: function isVisible() {
       return this.updateAvailable && !this.dismissed;
