@@ -165,3 +165,34 @@ CKEDITOR_CONFIGS = {
         ]
     }
 }
+
+
+# logging
+# https://docs.djangoproject.com/en/2.0/topics/logging/
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'notes': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': True,
+        }
+    }
+}
+
+PUSH_NOTIFICATION_GROUPS = {
+    'default': os.getenv('DJANGO_PUSH_NOTIFICATION_GROUP_DEFAULT', 'notes-app-public')
+}

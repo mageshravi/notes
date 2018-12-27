@@ -2007,6 +2007,20 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
         case 'page:reload':
           window.location.reload();
           break;
+
+        case 'note:created':
+          // 1. add note to idb
+          // 2. refresh folder
+          // 3. refresh tags
+          console.log('TODO: start syncing database. note:created', ev.data.noteData);
+          break;
+
+        case 'note:updated':
+          // 1. add note to idb
+          // 2. refresh folder
+          // 3. refresh tags
+          console.log('TODO: start syncing database. note:updated', ev.data.noteData);
+          break;
       }
     });
   }
@@ -2014,13 +2028,14 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
 
 Vue.component('push-prompt', {
   props: ['showPushPrompt'],
-  template: "\n  <div id=\"enable-push-prompt\" class=\"m-push-prompt\"\n    v-if=\"showPushPrompt\">\n    <div class=\"m-push-prompt__content\">\n      <img src=\"/static/wicons/push-notifications1.png\"/>\n      <p>\n        This app relies on push notifications to keep your notes up-to-date on this device.\n      </p>\n      <button id=\"enable-push-notifications\"\n        v-on:click=\"enablePushNotifications\">Enable Push Notifications</button>\n    </div>\n  </div>\n  ",
+  template: "\n  <div id=\"enable-push-prompt\" class=\"m-push-prompt\"\n      v-if=\"showPushPrompt\" v-on:refresh=\"refreshPushPrompt\">\n    <div class=\"m-push-prompt__content\">\n      <img src=\"/static/wicons/push-notifications1.png\"/>\n      <p>\n        This app relies on push notifications to keep your notes up-to-date on this device.\n      </p>\n      <button id=\"enable-push-notifications\"\n        v-on:click=\"enablePushNotifications\">Enable Push Notifications</button>\n    </div>\n  </div>\n  ",
   methods: {
     enablePushNotifications: function enablePushNotifications() {
-      console.log('Wohoo', _NotesPushManager.default.EVENTS.ENABLE_PUSH_NOTIFICATION);
       var ev = new Event(_NotesPushManager.default.EVENTS.ENABLE_PUSH_NOTIFICATION);
       document.dispatchEvent(ev);
-      this.show = false;
+    },
+    refreshPushPrompt: function refreshPushPrompt() {
+      this.showPushPrompt = Notification.permission === 'default';
     }
   }
 });
@@ -2179,6 +2194,9 @@ var notesApp = new Vue({
     startSpinner: function startSpinner() {// TODO: start spinner
     },
     stopSpinner: function stopSpinner() {// TODO: stop spinner
+    },
+    refreshPushPrompt: function refreshPushPrompt() {
+      this.showPushPrompt = Notification.permission === 'default';
     },
     populateDatabase: function populateDatabase(resource) {
       var _this = this;
@@ -2714,7 +2732,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
-/* global Notification, fetch */
+/* global Notification, fetch, Event */
 var NotesPushManager =
 /*#__PURE__*/
 function () {
@@ -2752,9 +2770,12 @@ function () {
       if (!('PushManager' in window)) {
         console.log('Your browser does not support/allow push notifications');
         return;
+      }
+
+      if (Notification.permission === 'granted') {
+        this.subscribe(this.reg);
       } // DONT SUBSCRIBE YET. LET USERS KNOW WHY YOU NEED PUSH NOTIFICATION.
       // ON CLICK, SUBSCRIBE.
-      // this.subscribe(reg)
 
 
       var _this = this;
@@ -2806,7 +2827,7 @@ function () {
 
       reg.pushManager.getSubscription().then(function (subscription) {
         if (subscription) {
-          _this2.sendSubscriptionData(subscription);
+          _this2.sendSubscriptionData(subscription, false);
 
           return;
         }
@@ -2821,13 +2842,13 @@ function () {
         });
 
         reg.pushManager.subscribe(options).then(function (sub) {
-          _this2.sendSubscriptionData(sub);
+          _this2.sendSubscriptionData(sub, true);
         });
       });
     }
   }, {
     key: "sendSubscriptionData",
-    value: function sendSubscriptionData(subscription) {
+    value: function sendSubscriptionData(subscription, notifyOnSuccess) {
       var browser = navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/ig)[0].toLowerCase();
       var data = {
         status_type: 'subscribe',
@@ -2845,13 +2866,21 @@ function () {
         credentials: 'include'
       }).then(function (response) {
         // handle response
-        console.log('Push notification subscription saved successfully'); // request a dummy notification
+        console.log('Push notification subscription saved successfully'); // show off a dummy notification
 
-        navigator.serviceWorker.controller.postMessage({
-          action: NotesPushManager.EVENTS.SUBSCRIPTION_SUCCESS_NOTIFICATION
-        }); // reload to get rid of the prompt
+        if (notifyOnSuccess) {
+          navigator.serviceWorker.controller.postMessage({
+            action: NotesPushManager.EVENTS.SUBSCRIPTION_SUCCESS_NOTIFICATION
+          });
+        } // get rid of the prompt
 
-        window.location.reload();
+
+        var pushPrompt = document.querySelector('#enable-push-prompt');
+
+        if (pushPrompt) {
+          var ev = new Event('refresh');
+          pushPrompt.dispatchEvent(ev);
+        }
       });
     }
   }]);
@@ -2861,4 +2890,48 @@ function () {
 
 var _default = NotesPushManager;
 exports.default = _default;
-},{}]},{},[29,30,31]);
+},{}],32:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var SWMessages =
+/*#__PURE__*/
+function () {
+  function SWMessages() {
+    _classCallCheck(this, SWMessages);
+  }
+
+  _createClass(SWMessages, null, [{
+    key: "pageReload",
+    // eslint-disable-line no-unused-vars
+    get: function get() {
+      return 'page:reload';
+    }
+  }, {
+    key: "noteCreated",
+    get: function get() {
+      return 'note:created';
+    }
+  }, {
+    key: "noteUpdated",
+    get: function get() {
+      return 'note:updated';
+    }
+  }]);
+
+  return SWMessages;
+}();
+
+var _default = SWMessages;
+exports.default = _default;
+},{}]},{},[29,30,31,32]);

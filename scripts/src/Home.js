@@ -57,6 +57,20 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
         case 'page:reload':
           window.location.reload()
           break
+
+        case 'note:created':
+          // 1. add note to idb
+          // 2. refresh folder
+          // 3. refresh tags
+          console.log('TODO: start syncing database. note:created', ev.data.noteData)
+          break
+
+        case 'note:updated':
+          // 1. add note to idb
+          // 2. refresh folder
+          // 3. refresh tags
+          console.log('TODO: start syncing database. note:updated', ev.data.noteData)
+          break
       }
     })
   }
@@ -70,7 +84,7 @@ Vue.component('push-prompt', {
   ],
   template: `
   <div id="enable-push-prompt" class="m-push-prompt"
-    v-if="showPushPrompt">
+      v-if="showPushPrompt" v-on:refresh="refreshPushPrompt">
     <div class="m-push-prompt__content">
       <img src="/static/wicons/push-notifications1.png"/>
       <p>
@@ -83,11 +97,11 @@ Vue.component('push-prompt', {
   `,
   methods: {
     enablePushNotifications () {
-      console.log('Wohoo', NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION)
-
       let ev = new Event(NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION)
       document.dispatchEvent(ev)
-      this.show = false
+    },
+    refreshPushPrompt () {
+      this.showPushPrompt = (Notification.permission === 'default')
     }
   }
 })
@@ -335,6 +349,9 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     },
     stopSpinner () {
       // TODO: stop spinner
+    },
+    refreshPushPrompt () {
+      this.showPushPrompt = (Notification.permission === 'default')
     },
     populateDatabase (resource) {
       if (this.dbPopulated) {

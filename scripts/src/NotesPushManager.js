@@ -1,4 +1,4 @@
-/* global Notification, fetch */
+/* global Notification, fetch, Event */
 class NotesPushManager {
 
   static get EVENTS () {
@@ -30,10 +30,12 @@ class NotesPushManager {
       return
     }
 
+    if (Notification.permission === 'granted') {
+      this.subscribe(this.reg)
+    }
+
     // DONT SUBSCRIBE YET. LET USERS KNOW WHY YOU NEED PUSH NOTIFICATION.
     // ON CLICK, SUBSCRIBE.
-    // this.subscribe(reg)
-
     let _this = this
     document.addEventListener(NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION, () => {
       _this.subscribe(_this.reg)
@@ -74,7 +76,7 @@ class NotesPushManager {
   subscribe (reg) {
     reg.pushManager.getSubscription().then(subscription => {
       if (subscription) {
-        this.sendSubscriptionData(subscription)
+        this.sendSubscriptionData(subscription, false)
         return
       }
 
@@ -86,12 +88,12 @@ class NotesPushManager {
       }
 
       reg.pushManager.subscribe(options).then(sub => {
-        this.sendSubscriptionData(sub)
+        this.sendSubscriptionData(sub, true)
       })
     })
   }
 
-  sendSubscriptionData (subscription) {
+  sendSubscriptionData (subscription, notifyOnSuccess) {
     const browser = navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/ig)[0].toLowerCase()
     const data = {
       status_type: 'subscribe',
@@ -114,11 +116,17 @@ class NotesPushManager {
       // handle response
       console.log('Push notification subscription saved successfully')
 
-      // request a dummy notification
-      navigator.serviceWorker.controller.postMessage({action: NotesPushManager.EVENTS.SUBSCRIPTION_SUCCESS_NOTIFICATION})
+      // show off a dummy notification
+      if (notifyOnSuccess) {
+        navigator.serviceWorker.controller.postMessage({action: NotesPushManager.EVENTS.SUBSCRIPTION_SUCCESS_NOTIFICATION})
+      }
 
-      // reload to get rid of the prompt
-      window.location.reload()
+      // get rid of the prompt
+      var pushPrompt = document.querySelector('#enable-push-prompt')
+      if (pushPrompt) {
+        var ev = new Event('refresh')
+        pushPrompt.dispatchEvent(ev)
+      }
     })
   }
 }

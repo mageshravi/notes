@@ -26,28 +26,60 @@ var filesToCache = [
   '/static/wicons/notes/ipad-retina.png',
 ]
 
+var filesToRefresh = [
+  '/static/js/app.min.js',
+]
+
 self.addEventListener('install', function (ev) {
   console.log('[ServiceWorker] Install')
   ev.waitUntil(
-    caches.open(staticCacheName)
-      .then(function (cache) {
-        console.log('[ServiceWorker] Caching app shell');
-        return cache.addAll(filesToCache)
-      }),
+    caches.open(staticCacheName).then(function (cache) {
+      console.log('[ServiceWorker] Caching app shell');
+      return cache.addAll(filesToCache)
+    })
   )
 });
 
 self.addEventListener('activate', function (ev) {
   console.log('[ServiceWorker] Activate')
   ev.waitUntil(
-    caches.keys()
-    .then(function (keysList) {
+    caches.keys().then(function (keysList) {
       return Promise.all(
         keysList.map(function (key) {
           if (key !== staticCacheName) {
             console.log('[ServiceWorker] Removing old cache', key)
             return caches.delete(key)
           }
+        })
+      )
+    }),
+
+    // process the files-to-refresh list
+    caches.open(staticCacheName).then(cache => {
+      // delete from cache
+      return Promise.all(
+        filesToRefresh.map(async function (key) {
+          var isDeleted = await cache.delete(key)
+          var isAdded = true
+
+          try {
+            // make sure to include the nocache param with <static-cache-version> as value.
+            // this ensures fetching from network instead of cache
+            var response = await fetch(key + '?nocache=' + staticCacheName)
+            cache.put(key, response)
+          } catch (error) {
+            isAdded = false
+          }
+
+          console.log('[ServiceWorker] filesToRefresh', key, '=> deleted:', isDeleted, 'added:', isAdded)
+
+          return new Promise((resolve, reject) => {
+            if (isDeleted && isAdded) {
+              resolve(true)
+            } else {
+              reject('deleted: ' + isDeleted + ', added: ' + isAdded)
+            }
+          })
         })
       )
     })
@@ -66,20 +98,43 @@ self.addEventListener('fetch', function (ev) {
       return
     }
 
-    if (requestUrl.pathname.match(/^\/static\//)) {
-      // check in cache. if not found, network.
-      ev.respondWith(
-        caches.match(requestUrl.pathname)
-          .then((response) => {
-            return response || fetch(ev.request)
-          })
-      )
+    // "nocache" condition
+    // requests with ?nocache=static-cache-version param
+    var nocacheRegex = new RegExp('\\?nocache=' + staticCacheName)
+    if (nocacheRegex.test(requestUrl.pathname)) {
+      // network, falling back to cache
+      ev.respondWith(async function () {
+        try {
+          var networkResponse = await fetch(ev.request)
+          return networkResponse
+        } catch (error) {
+          console.log('[ServiceWorker] fetch failed: ', reason)
+          var cacheResponse = await caches.match(requestUrl.pathname)
+          return cacheResponse
+        }
+      }())
+
       return
+    }
+
+    // static files
+    if (requestUrl.pathname.match(/^\/static\//)) {
+      // cache, falling back to network.
+      ev.respondWith(async function () {
+        const staticCache = await caches.open(staticCacheName)
+        const response = await staticCache.match(requestUrl.pathname)
+        return response || fetch(ev.request)
+      }())
     }
   }
 })
 
-function send_message_to_client(client, msg) {
+/**
+ * Posts message to a specific client
+ * @param {Window} client The client to send message to
+ * @param {Object} msg The message
+ */
+function sendMessageToClient(client, msg) {
   return new Promise((resolve, reject) => {
     let msgChannel = new MessageChannel()
 
@@ -95,10 +150,14 @@ function send_message_to_client(client, msg) {
   })
 }
 
-function send_message_to_all_clients(msg) {
+/**
+ * Posts message to all clients
+ * @param {Object} msg The message
+ */
+function sendMessageToAllClients(msg) {
   clients.matchAll().then(clients => {
     clients.forEach(client => {
-      send_message_to_client(client, msg).then(msg => {
+      sendMessageToClient(client, msg).then(msg => {
         console.log('[ServiceWorker] Client received message:', msg)
       })
     })
@@ -110,7 +169,7 @@ self.addEventListener('message', event => {
     self.skipWaiting()
 
     // let clients know to refresh page
-    send_message_to_all_clients({action:'page:reload'})
+    sendMessageToAllClients({action:'page:reload'})
   }
 
   if (event.data.action === 'push-subscription:success') {
@@ -121,5 +180,70 @@ self.addEventListener('message', event => {
         icon: 'https://i.imgur.com/MZM3K5w.png'
       }
     )
+  }
+})
+
+/**
+ * Gets the first non-admin client from the connected clients list
+ * @param {Function} callback The callback function
+ */
+function getFirstNonAdminClient(callback) {
+  clients.matchAll().then(clientsList => {
+    // get client that is not associated with admin panel i.e., /admin/
+    let i = 0
+    let nonAdminClient = clientsList[i]
+    const adminUrlPattern = /\/admin\//
+    while (adminUrlPattern.test(clientsList[i].url)) {
+      i++
+      nonAdminClient = clientsList[i]
+    }
+
+    if (typeof callback === 'function') {
+      callback(nonAdminClient)
+    }
+  })
+}
+
+self.addEventListener('push', (event) => {
+  const eventInfo = event.data.text()
+  const data = JSON.parse(eventInfo)
+
+  switch (data.type) {
+    case 'note:created':
+      console.log('[ServiceWorker] A new note has been created', data)
+      // we do not want multiple clients to start syncing data
+      // send message to first client only
+      getFirstNonAdminClient(nonAdminClient => {
+        sendMessageToClient(
+          nonAdminClient,
+          {
+            action: 'note:created',
+            noteData: data.noteData
+          }
+        ).then(msg => {
+          console.log('[ServiceWorker] Message sent to client: ', msg)
+        })
+      })
+      break
+
+    case 'note:updated':
+      console.log('[ServiceWorker] A note has been updated', data)
+      // we do not want multiple clients to start syncing data
+      // send message to first client only
+      getFirstNonAdminClient(nonAdminClient => {
+        sendMessageToClient(
+          nonAdminClient,
+          {
+            action: 'note:updated',
+            noteData: data.noteData
+          }
+        ).then(msg => {
+          console.log('[ServiceWorker] Message sent to client: ', msg)
+        })
+      })
+      break
+
+    default:
+      console.log('Unknown push data: ', data)
   }
 })
