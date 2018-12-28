@@ -7,6 +7,7 @@
 
 import axios from 'axios'
 import NotesDB from './NotesDB'
+import NotesSync from './NotesSync'
 import NotesPushManager from './NotesPushManager'
 
 let newWorker
@@ -47,8 +48,6 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
 
     // listen to messages from service worker
     navigator.serviceWorker.addEventListener('message', (ev) => {
-      console.log('Message from service-worker:', ev.data)
-
       if (!('action' in ev.data)) {
         return
       }
@@ -66,10 +65,33 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
           break
 
         case 'note:updated':
-          // 1. add note to idb
-          // 2. refresh folder
-          // 3. refresh tags
-          console.log('TODO: start syncing database. note:updated', ev.data.noteData)
+          let notesSync = new NotesSync()
+          let note = ev.data.noteData
+
+          let folderId = note.meta.folder
+          notesSync.syncFolder(folderId)
+            .then(result => {
+              // update view
+              let foldersListEl = document.querySelector('.m-folders-list')
+              if (foldersListEl) {
+                let refreshEvent = new Event('refresh-folders')
+                foldersListEl.dispatchEvent(refreshEvent)
+              }
+            })
+
+          let tagIds = note.meta.tags
+          tagIds.forEach(tagId => {
+            notesSync.syncTag(tagId)
+          })
+
+          // dirty hack: assuming all tags have been synced with 500ms, update view
+          setTimeout(function () {
+            let tagsListEl = document.querySelector('.m-folders-list--tags')
+            if (tagsListEl) {
+              let refreshEvent = new Event('refresh-tags')
+              tagsListEl.dispatchEvent(refreshEvent)
+            }
+          }, 500)
           break
       }
     })
@@ -139,6 +161,35 @@ Vue.component('update-notification', {
   }
 })
 
+Vue.component('folders-list', {
+  props: [
+    'foldersList',
+    'selectedFolder'
+  ],
+  template: `
+  <ul class="m-folders-list" v-if="notEmptyFoldersList">
+    <folder-item
+        v-for="folder in foldersList"
+        v-bind:folder="folder"
+        v-bind:selected-folder="selectedFolder"
+        v-bind:key="folder.id">
+    </folder-item>
+  </ul>
+  <ul class="m-folders-list" v-else>
+    <li class="m-folders-list__item is-disabled">
+      <span class="m-folders-list__link">No folders</span>
+    </li>
+  </ul>
+  `,
+  computed: {
+    notEmptyFoldersList: function () {
+      return Boolean(this.foldersList.length)
+    }
+  },
+  methods: {
+  }
+})
+
 Vue.component('folder-item', {
   props: [
     'folder',
@@ -170,6 +221,33 @@ Vue.component('folder-item', {
         this.$emit('slide-to-mobile-panel', 'notes-list')
         return false
       }
+    }
+  }
+})
+
+Vue.component('tags-list', {
+  props: [
+    'tagsList',
+    'selectedTag'
+  ],
+  template: `
+  <ul class="m-folders-list m-folders-list--tags" v-if="notEmptyTagsList">
+    <tags-folder-item
+        v-for="tag in tagsList"
+        v-bind:tag="tag"
+        v-bind:selected-tag="selectedTag"
+        v-bind:key="tag.id">
+    </tags-folder-item>
+  </ul>
+  <ul class="m-folders-list m-folders-list--tags" v-else>
+    <li class="m-folders-list__item is-disabled">
+      <span class="m-folders-list__link">No tags</span>
+    </li>
+  </ul>
+  `,
+  computed: {
+    notEmptyTagsList: function () {
+      return Boolean(this.tagsList.length)
     }
   }
 })
@@ -336,12 +414,6 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     selectedNote: false
   },
   computed: {
-    notEmptyFoldersList: function () {
-      return Boolean(this.foldersList.length)
-    },
-    notEmptyTagsList: function () {
-      return Boolean(this.tagsList.length)
-    }
   },
   methods: {
     startSpinner () {

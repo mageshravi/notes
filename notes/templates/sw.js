@@ -211,6 +211,11 @@ self.addEventListener('push', (event) => {
   switch (data.type) {
     case 'note:created':
       console.log('[ServiceWorker] A new note has been created', data)
+
+      if (!'noteData' in data) {
+        return
+      }
+
       // we do not want multiple clients to start syncing data
       // send message to first client only
       getFirstNonAdminClient(nonAdminClient => {
@@ -228,6 +233,10 @@ self.addEventListener('push', (event) => {
 
     case 'note:updated':
       console.log('[ServiceWorker] A note has been updated', data)
+
+      if (!'noteData' in data) {
+        return
+      }
       // we do not want multiple clients to start syncing data
       // send message to first client only
       getFirstNonAdminClient(nonAdminClient => {
@@ -241,6 +250,25 @@ self.addEventListener('push', (event) => {
           console.log('[ServiceWorker] Message sent to client: ', msg)
         })
       })
+      event.waitUntil(
+        self.registration.showNotification(
+          'Note updated',
+          {
+            body: data.noteData.title,
+            icon: 'https://i.imgur.com/MZM3K5w.png'
+          }
+        )
+      )
+      break
+
+    case 'note:deleted':
+    case 'folder:created':
+    case 'folder:updated':
+    case 'folder:deleted':
+    case 'tag:created':
+    case 'tag:updated':
+    case 'tag:deleted':
+      console.log('To be implemented:', data)
       break
 
     default:

@@ -1954,6 +1954,8 @@ var _axios = _interopRequireDefault(require("axios"));
 
 var _NotesDB = _interopRequireDefault(require("./NotesDB"));
 
+var _NotesSync = _interopRequireDefault(require("./NotesSync"));
+
 var _NotesPushManager = _interopRequireDefault(require("./NotesPushManager"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
@@ -1997,8 +1999,6 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
     }); // listen to messages from service worker
 
     navigator.serviceWorker.addEventListener('message', function (ev) {
-      console.log('Message from service-worker:', ev.data);
-
       if (!('action' in ev.data)) {
         return;
       }
@@ -2016,10 +2016,31 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
           break;
 
         case 'note:updated':
-          // 1. add note to idb
-          // 2. refresh folder
-          // 3. refresh tags
-          console.log('TODO: start syncing database. note:updated', ev.data.noteData);
+          var notesSync = new _NotesSync.default();
+          var note = ev.data.noteData;
+          var folderId = note.meta.folder;
+          notesSync.syncFolder(folderId).then(function (result) {
+            // update view
+            var foldersListEl = document.querySelector('.m-folders-list');
+
+            if (foldersListEl) {
+              var refreshEvent = new Event('refresh-folders');
+              foldersListEl.dispatchEvent(refreshEvent);
+            }
+          });
+          var tagIds = note.meta.tags;
+          tagIds.forEach(function (tagId) {
+            notesSync.syncTag(tagId);
+          }); // dirty hack: assuming all tags have been synced with 500ms, update view
+
+          setTimeout(function () {
+            var tagsListEl = document.querySelector('.m-folders-list--tags');
+
+            if (tagsListEl) {
+              var refreshEvent = new Event('refresh-tags');
+              tagsListEl.dispatchEvent(refreshEvent);
+            }
+          }, 500);
           break;
       }
     });
@@ -2059,6 +2080,16 @@ Vue.component('update-notification', {
     }
   }
 });
+Vue.component('folders-list', {
+  props: ['foldersList', 'selectedFolder'],
+  template: "\n  <ul class=\"m-folders-list\" v-if=\"notEmptyFoldersList\">\n    <folder-item\n        v-for=\"folder in foldersList\"\n        v-bind:folder=\"folder\"\n        v-bind:selected-folder=\"selectedFolder\"\n        v-bind:key=\"folder.id\">\n    </folder-item>\n  </ul>\n  <ul class=\"m-folders-list\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No folders</span>\n    </li>\n  </ul>\n  ",
+  computed: {
+    notEmptyFoldersList: function notEmptyFoldersList() {
+      return Boolean(this.foldersList.length);
+    }
+  },
+  methods: {}
+});
 Vue.component('folder-item', {
   props: ['folder', 'selectedFolder'],
   template: "\n  <li class=\"m-folders-list__item\"\n      v-bind:class=\"{'is-active': isActive}\">\n    <a class=\"m-folders-list__link\"\n       v-bind:href=\"route\"\n       v-on:click=\"selectFolder\">\n      {{ folder.name }}\n    </a>\n  </li>",
@@ -2079,6 +2110,15 @@ Vue.component('folder-item', {
         this.$emit('slide-to-mobile-panel', 'notes-list');
         return false;
       }
+    }
+  }
+});
+Vue.component('tags-list', {
+  props: ['tagsList', 'selectedTag'],
+  template: "\n  <ul class=\"m-folders-list m-folders-list--tags\" v-if=\"notEmptyTagsList\">\n    <tags-folder-item\n        v-for=\"tag in tagsList\"\n        v-bind:tag=\"tag\"\n        v-bind:selected-tag=\"selectedTag\"\n        v-bind:key=\"tag.id\">\n    </tags-folder-item>\n  </ul>\n  <ul class=\"m-folders-list m-folders-list--tags\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No tags</span>\n    </li>\n  </ul>\n  ",
+  computed: {
+    notEmptyTagsList: function notEmptyTagsList() {
+      return Boolean(this.tagsList.length);
     }
   }
 });
@@ -2182,14 +2222,7 @@ var notesApp = new Vue({
     selectedTag: false,
     selectedNote: false
   },
-  computed: {
-    notEmptyFoldersList: function notEmptyFoldersList() {
-      return Boolean(this.foldersList.length);
-    },
-    notEmptyTagsList: function notEmptyTagsList() {
-      return Boolean(this.tagsList.length);
-    }
-  },
+  computed: {},
   methods: {
     startSpinner: function startSpinner() {// TODO: start spinner
     },
@@ -2550,7 +2583,7 @@ window['isUpdateAvailable'].then(function (isAvailable) {
     notesApp.updateAvailable = true;
   }
 });
-},{"./NotesDB":30,"./NotesPushManager":31,"axios":1}],30:[function(require,module,exports){
+},{"./NotesDB":30,"./NotesPushManager":31,"./NotesSync":32,"axios":1}],30:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -2663,12 +2696,30 @@ function () {
       });
     }
   }, {
+    key: "getFolderById",
+    value: function getFolderById(folderId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('folders');
+        var folderStore = tx.objectStore('folders');
+        return folderStore.get(folderId);
+      });
+    }
+  }, {
     key: "getAllFolders",
     value: function getAllFolders() {
       return this.dbPromise.then(function (db) {
         var tx = db.transaction('folders');
         var folderStore = tx.objectStore('folders');
         return folderStore.getAll();
+      });
+    }
+  }, {
+    key: "getTagById",
+    value: function getTagById(tagId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('tags');
+        var tagStore = tx.objectStore('tags');
+        return tagStore.get(tagId);
       });
     }
   }, {
@@ -2898,6 +2949,165 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 
+var _NotesDB = _interopRequireDefault(require("./NotesDB"));
+
+var _axios = _interopRequireDefault(require("axios"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var NotesSync =
+/*#__PURE__*/
+function () {
+  function NotesSync() {
+    _classCallCheck(this, NotesSync);
+  }
+
+  _createClass(NotesSync, [{
+    key: "syncFolder",
+    // eslint-disable-line no-unused-vars
+    value: function syncFolder(folderId) {
+      var notesDb = new _NotesDB.default();
+      return notesDb.getFolderById(folderId).then(function (folder) {
+        // check if folder exists in idb
+        var promise = new Promise(function (resolve, reject) {
+          if (folder) {
+            // folder exists
+            resolve({
+              folder: {
+                id: folder.id,
+                name: folder.name
+              },
+              syncFolders: false
+            });
+          } else {
+            // folder does not exist
+            resolve({
+              folder: {
+                id: folderId,
+                name: null
+              },
+              syncFolders: true
+            });
+          }
+        });
+        return promise;
+      }).then(function (result) {
+        // check if folders need to be synced
+        var promise = new Promise(function (resolve, reject) {
+          if (result.folder.name && !result.syncFolders) {
+            resolve(result.folder.name);
+          } else {
+            // folder not found in idb. sync folders
+            _axios.default.get("/folders").then(function (response) {
+              notesDb.addFolders(response.data);
+              notesDb.getFolderById(result.folder.id).then(function (folder) {
+                if (folder) {
+                  resolve(folder.name);
+                } else {
+                  reject("Unknown folder #".concat(result.folder.id));
+                }
+              });
+            });
+          }
+        });
+        return promise;
+      }).then(function (folderName) {
+        // refresh notes in folder
+        var promise = new Promise(function (resolve, reject) {
+          _axios.default.get("/folders/".concat(folderName)).then(function (response) {
+            notesDb.addNotesToFolder(response.data, folderName);
+            resolve(true);
+          }).catch(function (err) {
+            reject("error fetching notes in folder ".concat(folderName, ": ").concat(err));
+          });
+        });
+        return promise;
+      }).catch(function (err) {
+        console.log('error:', err);
+      });
+    }
+  }, {
+    key: "syncTag",
+    value: function syncTag(tagId) {
+      var notesDb = new _NotesDB.default();
+      notesDb.getTagById(tagId).then(function (tag) {
+        // check if tag exists in idb
+        var promise = new Promise(function (resolve, reject) {
+          if (tag) {
+            // tag exists
+            resolve({
+              tag: {
+                id: tag.id,
+                handle: tag.handle
+              },
+              syncTags: false
+            });
+          } else {
+            // tag does not exist
+            resolve({
+              tag: {
+                id: tagId,
+                handle: null
+              },
+              syncTags: true
+            });
+          }
+        });
+        return promise;
+      }).then(function (result) {
+        // check if tags need to be synced
+        var promise = new Promise(function (resolve, reject) {
+          if (result.tag.handle && !result.syncTags) {
+            resolve(result.tag.handle);
+          } else {
+            // tag not found in idb. sync tags
+            _axios.default.get("/tags").then(function (response) {
+              notesDb.addTags(response.data);
+              notesDb.getTagById(result.tag.id).then(function (tag) {
+                if (tag) {
+                  console.log("syncTag #".concat(result.tag.id, " => ").concat(tag.handle));
+                  resolve(tag.handle);
+                } else {
+                  reject("Unknown tag #".concat(result.tag.id));
+                }
+              });
+            });
+          }
+        });
+        return promise;
+      }).then(function (tagHandle) {
+        // refresh notes with tag
+        _axios.default.get("/tags/".concat(tagHandle)).then(function (response) {
+          notesDb.addNotesToTag(response.data, tagHandle);
+          console.log('tag sync successful');
+        }).catch(function (err) {
+          console.log(" |- fetch notes with tag ".concat(tagHandle, ": ").concat(err));
+        });
+      }).catch(function (err) {
+        console.log('error', err);
+      });
+    }
+  }]);
+
+  return NotesSync;
+}();
+
+var _default = NotesSync;
+exports.default = _default;
+},{"./NotesDB":30,"axios":1}],33:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
@@ -2934,4 +3144,4 @@ function () {
 
 var _default = SWMessages;
 exports.default = _default;
-},{}]},{},[29,30,31,32]);
+},{}]},{},[29,30,31,32,33]);

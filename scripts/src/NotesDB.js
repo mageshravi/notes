@@ -71,11 +71,27 @@ class NotesDB { // eslint-disable-line no-unused-vars
     })
   }
 
+  getFolderById (folderId) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('folders')
+      var folderStore = tx.objectStore('folders')
+      return folderStore.get(folderId)
+    })
+  }
+
   getAllFolders () {
     return this.dbPromise.then(db => {
       var tx = db.transaction('folders')
       var folderStore = tx.objectStore('folders')
       return folderStore.getAll()
+    })
+  }
+
+  getTagById (tagId) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('tags')
+      var tagStore = tx.objectStore('tags')
+      return tagStore.get(tagId)
     })
   }
 
