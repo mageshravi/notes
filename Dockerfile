@@ -3,5 +3,5 @@ ENV PYTHONBUFFERED 1
 RUN mkdir /code
 WORKDIR /code
 ADD pip-requirements /code/
-RUN pip install -r pip-requirements
+RUN pip install --upgrade pip && pip install -r pip-requirements
 ADD . /code/

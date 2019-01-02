@@ -6,7 +6,7 @@ from django.urls import reverse
 
 class FolderSerializer(object):
 
-    def serialize(self, folder: Folder):
+    def serialize(self, folder: Folder) -> dict:
         """serializes the given object to dict
         """
         return {
@@ -18,7 +18,7 @@ class FolderSerializer(object):
 
 class TagSerializer(object):
 
-    def serialize(self, tag: Tag):
+    def serialize(self, tag: Tag) -> dict:
         """serializes the given object to dict
         """
         return {
@@ -40,7 +40,7 @@ class NoteSerializer(object):
         else:
             return dt.strftime('%d %b %Y')
 
-    def serialize_minimal(self, note: Note):
+    def serialize_minimal(self, note: Note) -> dict:
 
         return {
             'id': note.id,
@@ -50,7 +50,7 @@ class NoteSerializer(object):
             'updated_at': self._format_datetime(note.updated_at)
         }
 
-    def serialize_full(self, note: Note):
+    def serialize_full(self, note: Note) -> dict:
 
         tag_serializer = TagSerializer()
         folder_serializer = FolderSerializer()

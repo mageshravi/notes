@@ -1,0 +1,155 @@
+import logging
+
+from django.conf import settings
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+from notes.models import Folder, Note, Tag
+from notes.notifications import PushNotification
+from notes.serializers import FolderSerializer, NoteSerializer
+from notes.signals.signals import folder_updated, note_updated
+from webpush import send_group_notification
+
+
+@receiver(post_save, sender=Folder)
+def folder_created_handler(sender, **kwargs):
+    """handles the built-in post_save signal for Folder.
+    Used for folder:created scenario.
+    Not useful for folder:updated as there is no reliable way to detect changes
+
+    Arguments:
+        sender {django.db.models.Model} -- The object dispatching the signal
+    """
+
+    if not kwargs.get('created'):
+        return
+    # endif
+
+    folder: Folder = kwargs.get('instance')
+    serialized_folder = FolderSerializer().serialize(folder)
+
+    payload = {
+        'head': 'New folder',
+        'body': folder.name,
+        'url': '/#%s' % serialized_folder.get('url'),
+        'type': 'folder:created',
+        'folderData': serialized_folder,
+    }
+
+    PushNotification().send_to_default_group(payload)
+
+
+@receiver(folder_updated, sender=Folder)
+def folder_updated_handler(sender, **kwargs):
+    """handles the folder_updated signal
+    """
+
+    folder: Folder = kwargs.get('instance')
+    serialized_folder = FolderSerializer().serialize(folder)
+
+    payload = {
+        'head': 'Folder updated',
+        'body': folder.name,
+        'url': '/#%s' % serialized_folder.get('url'),
+        'type': 'folder:updated',
+        'folderData': serialized_folder,
+    }
+
+    PushNotification().send_to_default_group(payload)
+
+
+@receiver(post_delete, sender=Folder)
+def folder_deleted_handler(sender, **kwargs):
+    """handles the post_delete signal for Folder
+    """
+
+    folder: Folder = kwargs.get('instance')
+    serialized_folder = FolderSerializer().serialize(folder)
+
+    payload = {
+        'head': 'Folder deleted',
+        'body': folder.name,
+        'url': '/#%s' % serialized_folder.get('url'),
+        'type': 'folder:deleted',
+        'folderData': serialized_folder,
+    }
+
+    PushNotification().send_to_default_group(payload)
+
+
+@receiver(post_save, sender=Note)
+def note_post_save_handler(sender, **kwargs):
+    """handles the built-in post_save signal for Note.
+    Used for note:created notification.
+    Not useful for note:updated as there is no reliable way to detect changes
+
+    Arguments:
+        sender {django.db.models.Model} -- The object dispatching the signal
+    """
+
+    if not kwargs.get('created'):
+        return
+    # endif
+
+    note: Note = kwargs.get('instance')
+    serialized_note = NoteSerializer().serialize_minimal(note)
+    serialized_note['meta'] = {
+        'folder': note.folder.id,
+        'tags': [tag.id for tag in note.tags.all()]
+    }
+
+    payload = {
+        'head': 'New note',
+        'body': note.title,
+        'url': '/#%s' % (serialized_note.get('url')),
+        'type': 'note:created',
+        'noteData': serialized_note
+    }
+
+    PushNotification().send_to_default_group(payload)
+
+
+@receiver(note_updated, sender=Note)
+def note_updated_handler(sender, **kwargs):
+    """handles the note_updated signal
+    """
+
+    note: Note = kwargs.get('instance')
+    serialized_note = NoteSerializer().serialize_minimal(note)
+    serialized_note['meta'] = {
+        'folder': note.folder.id,
+        'tags': [tag.id for tag in note.tags.all()]
+    }
+
+    payload = {
+        'head': 'Note updated',
+        'body': note.title,
+        'url': '/#%s' % (serialized_note.get('url')),
+        'type': 'note:updated',
+        'noteData': serialized_note
+    }
+
+    PushNotification().send_to_default_group(payload)
+
+
+@receiver(post_delete, sender=Note)
+def note_deleted_handler(sender, **kwargs):
+    """handles the post_delete signal for Note
+    """
+
+    note: Note = kwargs.get('instance')
+    serialized_note = NoteSerializer().serialize_minimal(note)
+    serialized_note['meta'] = {
+        'folder': note.folder.id,
+        'tags': [tag.id for tag in note.tags.all()]
+    }
+
+    payload = {
+        'head': 'Note deleted',
+        'body': note.title,
+        'url': '/#%s' % (serialized_note.get('url')),
+        'type': 'note:deleted',
+        'noteData': serialized_note
+    }
+
+    PushNotification().send_to_default_group(payload)

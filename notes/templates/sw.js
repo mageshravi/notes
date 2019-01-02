@@ -208,6 +208,19 @@ self.addEventListener('push', (event) => {
   const eventInfo = event.data.text()
   const data = JSON.parse(eventInfo)
 
+  const title = data.head || 'New notification'
+  const body = data.body || 'This is default content. Your notification didn\'t have one'
+  const icon = data.icon || '/static/wicons/notes/128x128.png'
+
+  // notification payload
+  let payload = {
+    body: body,
+    icon: icon,
+    data: {
+      ...(data.url && {url: data.url})
+    }
+  }
+
   switch (data.type) {
     case 'note:created':
       console.log('[ServiceWorker] A new note has been created', data)
@@ -250,28 +263,58 @@ self.addEventListener('push', (event) => {
           console.log('[ServiceWorker] Message sent to client: ', msg)
         })
       })
+
       event.waitUntil(
         self.registration.showNotification(
-          'Note updated',
-          {
-            body: data.noteData.title,
-            icon: 'https://i.imgur.com/MZM3K5w.png'
-          }
+          title,
+          payload
         )
       )
       break
 
     case 'note:deleted':
+      console.log('[ServiceWorker] Note deleted', data)
+      break
     case 'folder:created':
+      console.log('[ServiceWorker] Folder created', data)
+      break
     case 'folder:updated':
+      console.log('[ServiceWorker] Folder updated', data)
+      break
     case 'folder:deleted':
+      console.log('[ServiceWorker] Folder deleted', data)
+      break
     case 'tag:created':
+      console.log('[ServiceWorker] Tag created', data)
+      break
     case 'tag:updated':
+      console.log('[ServiceWorker] Tag updated', data)
+      break
     case 'tag:deleted':
-      console.log('To be implemented:', data)
+      console.log('[ServiceWorker] Tag deleted', data)
       break
 
     default:
       console.log('Unknown push data: ', data)
   }
+})
+
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close()
+  event.waitUntil(
+    clients.matchAll({
+      type: "window"
+    }).then(clientsList => {
+      for (var i=0; i < clientsList.length; i++) {
+        let client = clientsList[i]
+        let clientUrl = new URL(client.url)
+        if (clientUrl.pathname == event.notification.data.url && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url)
+      }
+    })
+  )
 })
