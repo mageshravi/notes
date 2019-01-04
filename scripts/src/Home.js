@@ -52,51 +52,180 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
         return
       }
 
+      console.log('New message from ServiceWorker', ev.data.action)
+
+      let notesSync = new NotesSync()
+      let notesDb = new NotesDB()
+      let note, folderId, tagIds
+      let promiseArray
+      let notification
+
       switch (ev.data.action) {
         case 'page:reload':
           window.location.reload()
           break
 
         case 'note:created':
-          // 1. add note to idb
-          // 2. refresh folder
-          // 3. refresh tags
-          console.log('TODO: start syncing database. note:created', ev.data.noteData)
+          // TL;DR: sync folders, tags, then fetch note-detail
+          // finally notify sw to display notification
+
+          note = ev.data.noteData
+          notification = ev.data.notificationData
+
+          // sync folder
+          folderId = note.meta.folder
+          notesSync.syncFolder(folderId)
+            .then(result => {
+              let promise = new Promise((resolve, reject) => {
+                triggerRefreshFoldersEvent()
+                resolve()
+              })
+              return promise
+            })
+            .then(() => {
+              // sync tags
+              tagIds = note.meta.tags
+              promiseArray = tagIds.map(tagId => {
+                return notesSync.syncTag(tagId)
+              })
+              return Promise.all(promiseArray)
+                .then(resultArray => {
+                  let promise = new Promise((resolve, reject) => {
+                    triggerRefreshTagsEvent()
+                    resolve()
+                  })
+                  return promise
+                })
+            })
+            .then(() => {
+              // fetch note-detail
+              return axios.get(`/notes/${note.slug}`)
+                .then(response => {
+                  let promise = new Promise((resolve, reject) => {
+                    notesDb.addNoteDetail(response.data)
+                    resolve()
+                  })
+                  return promise
+                })
+            })
+            .then(() => {
+              // notify service-worker to display notification
+              navigator.serviceWorker.controller.postMessage({
+                action: NotesPushManager.EVENTS.NOTE_CREATED_SYNC_COMPLETE,
+                notification: notification
+              })
+            })
+            .catch(err => {
+              console.log('Error syncing data for note:created', err)
+            })
           break
 
         case 'note:updated':
-          let notesSync = new NotesSync()
-          let note = ev.data.noteData
+          // TL;DR: sync folder, tags
+          // finally notify sw to display notification
+          note = ev.data.noteData
 
-          let folderId = note.meta.folder
+          // sync folder
+          folderId = note.meta.folder
           notesSync.syncFolder(folderId)
             .then(result => {
-              // update view
-              let foldersListEl = document.querySelector('.m-folders-list')
-              if (foldersListEl) {
-                let refreshEvent = new Event('refresh-folders')
-                foldersListEl.dispatchEvent(refreshEvent)
-              }
+              let promise = new Promise((resolve, reject) => {
+                triggerRefreshFoldersEvent()
+                resolve()
+              })
+              return promise
             })
+            .then(() => {
+              // sync tags
+              tagIds = note.meta.tags
+              promiseArray = tagIds.map(tagId => {
+                return notesSync.syncTag(tagId)
+              })
+              return Promise.all(promiseArray)
+                .then(resultArray => {
+                  let promise = new Promise((resolve, reject) => {
+                    triggerRefreshTagsEvent()
+                    resolve()
+                  })
+                  return promise
+                })
+            })
+            .then(() => {
+              // notify service-worker to display notification
+              navigator.serviceWorker.controller.postMessage({
+                action: NotesPushManager.EVENTS.NOTE_UPDATED_SYNC_COMPLETE,
+                notification: notification
+              })
+            })
+            .catch(err => {
+              console.log('Error syncing data for note:updated', err)
+            })
+          break
 
-          let tagIds = note.meta.tags
-          tagIds.forEach(tagId => {
-            notesSync.syncTag(tagId)
-          })
+        case 'note:deleted':
+          // delete note from
+          // 1. notesInFolders
+          // 2. notesWithTags
+          // 3. noteDetail
+          break
 
-          // dirty hack: assuming all tags have been synced with 500ms, update view
-          setTimeout(function () {
-            let tagsListEl = document.querySelector('.m-folders-list--tags')
-            if (tagsListEl) {
-              let refreshEvent = new Event('refresh-tags')
-              tagsListEl.dispatchEvent(refreshEvent)
-            }
-          }, 500)
+        case 'folder:created':
+          // add to folders
+          // fetch notesInFolders
+          break
+
+        case 'folder:updated':
+          // very likely to be rename
+          // get old folder name from idb using the folder id. If found, update folder, then delete notesInFolder (for old folder).
+          // add new folder
+          // fetch notesInFolder for new folder
+          break
+
+        case 'folder:deleted':
+          // delete folder and notesInFolder
+          break
+
+        case 'tag:created':
+          // add to tags
+          // fetch notesWithTags
+          break
+
+        case 'tag:updated':
+          // very likely to be rename
+          // get old tag handle using the folder id. If found, update tags, then delete notesWithTags (for old tag)
+          // add new tag
+          // fetch notesWithTags for new tag
+          break
+
+        case 'tag:deleted':
+          // delete tag and notesWithTags
           break
       }
     })
   }
 })
+
+/**
+ * Triggers the refresh-folders event that updates the foldersList view after idb has been updated.
+ */
+function triggerRefreshFoldersEvent () {
+  let foldersListEl = document.querySelector('.m-folders-list')
+  if (foldersListEl) {
+    let refreshEvent = new Event('refresh-folders')
+    foldersListEl.dispatchEvent(refreshEvent)
+  }
+}
+
+/**
+ * Triggers the refresh-tags event that updates the tagsList view after idb has been updated.
+ */
+function triggerRefreshTagsEvent () {
+  let tagsListEl = document.querySelector('.m-folders-list--tags')
+  if (tagsListEl) {
+    let refreshEvent = new Event('refresh-tags')
+    tagsListEl.dispatchEvent(refreshEvent)
+  }
+}
 
 // Vue components
 
@@ -172,7 +301,8 @@ Vue.component('folders-list', {
         v-for="folder in foldersList"
         v-bind:folder="folder"
         v-bind:selected-folder="selectedFolder"
-        v-bind:key="folder.id">
+        v-bind:key="folder.id"
+        v-on:slide-to-mobile-panel="slideToMobilePanel">
     </folder-item>
   </ul>
   <ul class="m-folders-list" v-else>
@@ -187,6 +317,9 @@ Vue.component('folders-list', {
     }
   },
   methods: {
+    slideToMobilePanel (area) {
+      this.$emit('slide-to-mobile-panel', area)
+    }
   }
 })
 
@@ -236,7 +369,8 @@ Vue.component('tags-list', {
         v-for="tag in tagsList"
         v-bind:tag="tag"
         v-bind:selected-tag="selectedTag"
-        v-bind:key="tag.id">
+        v-bind:key="tag.id"
+        v-on:slide-to-mobile-panel="slideToMobilePanel">
     </tags-folder-item>
   </ul>
   <ul class="m-folders-list m-folders-list--tags" v-else>
@@ -248,6 +382,11 @@ Vue.component('tags-list', {
   computed: {
     notEmptyTagsList: function () {
       return Boolean(this.tagsList.length)
+    }
+  },
+  methods: {
+    slideToMobilePanel (area) {
+      this.$emit('slide-to-mobile-panel', area)
     }
   }
 })

@@ -4,7 +4,9 @@ class NotesPushManager {
   static get EVENTS () {
     return {
       ENABLE_PUSH_NOTIFICATION: 'push-notification:enable',
-      SUBSCRIPTION_SUCCESS_NOTIFICATION: 'push-subscription:success'
+      SUBSCRIPTION_SUCCESS_NOTIFICATION: 'push-subscription:success',
+      NOTE_CREATED_SYNC_COMPLETE: 'note:created:sync-complete',
+      NOTE_UPDATED_SYNC_COMPLETE: 'note:update:sync-complete'
     }
   }
 

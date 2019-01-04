@@ -68,14 +68,11 @@ class NotesSync {   // eslint-disable-line no-unused-vars
         })
         return promise
       })
-      .catch(err => {
-        console.log('error:', err)
-      })
   }
 
   syncTag (tagId) {
     let notesDb = new NotesDB()
-    notesDb.getTagById(tagId)
+    return notesDb.getTagById(tagId)
       .then(tag => {
         // check if tag exists in idb
         let promise = new Promise((resolve, reject) => {
@@ -127,17 +124,17 @@ class NotesSync {   // eslint-disable-line no-unused-vars
       })
       .then(tagHandle => {
         // refresh notes with tag
-        axios.get(`/tags/${tagHandle}`)
-          .then(response => {
-            notesDb.addNotesToTag(response.data, tagHandle)
-            console.log('tag sync successful')
-          })
-          .catch(err => {
-            console.log(` |- fetch notes with tag ${tagHandle}: ${err}`)
-          })
-      })
-      .catch(err => {
-        console.log('error', err)
+        let promise = new Promise((resolve, reject) => {
+          axios.get(`/tags/${tagHandle}`)
+            .then(response => {
+              notesDb.addNotesToTag(response.data, tagHandle)
+              resolve(true)
+            })
+            .catch(err => {
+              reject(`error fetching notes with tag ${tagHandle}: ${err}`)
+            })
+        })
+        return promise
       })
   }
 }

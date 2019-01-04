@@ -2003,49 +2003,168 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
         return;
       }
 
+      console.log('New message from ServiceWorker', ev.data.action);
+      var notesSync = new _NotesSync.default();
+      var notesDb = new _NotesDB.default();
+      var note, folderId, tagIds;
+      var promiseArray;
+      var notification;
+
       switch (ev.data.action) {
         case 'page:reload':
           window.location.reload();
           break;
 
         case 'note:created':
-          // 1. add note to idb
-          // 2. refresh folder
-          // 3. refresh tags
-          console.log('TODO: start syncing database. note:created', ev.data.noteData);
+          // TL;DR: sync folders, tags, then fetch note-detail
+          // finally notify sw to display notification
+          note = ev.data.noteData;
+          notification = ev.data.notificationData; // sync folder
+
+          folderId = note.meta.folder;
+          notesSync.syncFolder(folderId).then(function (result) {
+            var promise = new Promise(function (resolve, reject) {
+              triggerRefreshFoldersEvent();
+              resolve();
+            });
+            return promise;
+          }).then(function () {
+            // sync tags
+            tagIds = note.meta.tags;
+            promiseArray = tagIds.map(function (tagId) {
+              return notesSync.syncTag(tagId);
+            });
+            return Promise.all(promiseArray).then(function (resultArray) {
+              var promise = new Promise(function (resolve, reject) {
+                triggerRefreshTagsEvent();
+                resolve();
+              });
+              return promise;
+            });
+          }).then(function () {
+            // fetch note-detail
+            return _axios.default.get("/notes/".concat(note.slug)).then(function (response) {
+              var promise = new Promise(function (resolve, reject) {
+                notesDb.addNoteDetail(response.data);
+                resolve();
+              });
+              return promise;
+            });
+          }).then(function () {
+            // notify service-worker to display notification
+            navigator.serviceWorker.controller.postMessage({
+              action: _NotesPushManager.default.EVENTS.NOTE_CREATED_SYNC_COMPLETE,
+              notification: notification
+            });
+          }).catch(function (err) {
+            console.log('Error syncing data for note:created', err);
+          });
           break;
 
         case 'note:updated':
-          var notesSync = new _NotesSync.default();
-          var note = ev.data.noteData;
-          var folderId = note.meta.folder;
+          // TL;DR: sync folder, tags
+          // finally notify sw to display notification
+          note = ev.data.noteData; // sync folder
+
+          folderId = note.meta.folder;
           notesSync.syncFolder(folderId).then(function (result) {
-            // update view
-            var foldersListEl = document.querySelector('.m-folders-list');
-
-            if (foldersListEl) {
-              var refreshEvent = new Event('refresh-folders');
-              foldersListEl.dispatchEvent(refreshEvent);
-            }
+            var promise = new Promise(function (resolve, reject) {
+              triggerRefreshFoldersEvent();
+              resolve();
+            });
+            return promise;
+          }).then(function () {
+            // sync tags
+            tagIds = note.meta.tags;
+            promiseArray = tagIds.map(function (tagId) {
+              return notesSync.syncTag(tagId);
+            });
+            return Promise.all(promiseArray).then(function (resultArray) {
+              var promise = new Promise(function (resolve, reject) {
+                triggerRefreshTagsEvent();
+                resolve();
+              });
+              return promise;
+            });
+          }).then(function () {
+            // notify service-worker to display notification
+            navigator.serviceWorker.controller.postMessage({
+              action: _NotesPushManager.default.EVENTS.NOTE_UPDATED_SYNC_COMPLETE,
+              notification: notification
+            });
+          }).catch(function (err) {
+            console.log('Error syncing data for note:updated', err);
           });
-          var tagIds = note.meta.tags;
-          tagIds.forEach(function (tagId) {
-            notesSync.syncTag(tagId);
-          }); // dirty hack: assuming all tags have been synced with 500ms, update view
+          break;
 
-          setTimeout(function () {
-            var tagsListEl = document.querySelector('.m-folders-list--tags');
+        case 'note:deleted':
+          // delete note from
+          // 1. notesInFolders
+          // 2. notesWithTags
+          // 3. noteDetail
+          break;
 
-            if (tagsListEl) {
-              var refreshEvent = new Event('refresh-tags');
-              tagsListEl.dispatchEvent(refreshEvent);
-            }
-          }, 500);
+        case 'folder:created':
+          // add to folders
+          // fetch notesInFolders
+          break;
+
+        case 'folder:updated':
+          // very likely to be rename
+          // get old folder name from idb using the folder id. If found, update folder, then delete notesInFolder (for old folder).
+          // add new folder
+          // fetch notesInFolder for new folder
+          break;
+
+        case 'folder:deleted':
+          // delete folder and notesInFolder
+          break;
+
+        case 'tag:created':
+          // add to tags
+          // fetch notesWithTags
+          break;
+
+        case 'tag:updated':
+          // very likely to be rename
+          // get old tag handle using the folder id. If found, update tags, then delete notesWithTags (for old tag)
+          // add new tag
+          // fetch notesWithTags for new tag
+          break;
+
+        case 'tag:deleted':
+          // delete tag and notesWithTags
           break;
       }
     });
   }
-}); // Vue components
+});
+/**
+ * Triggers the refresh-folders event that updates the foldersList view after idb has been updated.
+ */
+
+function triggerRefreshFoldersEvent() {
+  var foldersListEl = document.querySelector('.m-folders-list');
+
+  if (foldersListEl) {
+    var refreshEvent = new Event('refresh-folders');
+    foldersListEl.dispatchEvent(refreshEvent);
+  }
+}
+/**
+ * Triggers the refresh-tags event that updates the tagsList view after idb has been updated.
+ */
+
+
+function triggerRefreshTagsEvent() {
+  var tagsListEl = document.querySelector('.m-folders-list--tags');
+
+  if (tagsListEl) {
+    var refreshEvent = new Event('refresh-tags');
+    tagsListEl.dispatchEvent(refreshEvent);
+  }
+} // Vue components
+
 
 Vue.component('push-prompt', {
   props: ['showPushPrompt'],
@@ -2082,13 +2201,17 @@ Vue.component('update-notification', {
 });
 Vue.component('folders-list', {
   props: ['foldersList', 'selectedFolder'],
-  template: "\n  <ul class=\"m-folders-list\" v-if=\"notEmptyFoldersList\">\n    <folder-item\n        v-for=\"folder in foldersList\"\n        v-bind:folder=\"folder\"\n        v-bind:selected-folder=\"selectedFolder\"\n        v-bind:key=\"folder.id\">\n    </folder-item>\n  </ul>\n  <ul class=\"m-folders-list\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No folders</span>\n    </li>\n  </ul>\n  ",
+  template: "\n  <ul class=\"m-folders-list\" v-if=\"notEmptyFoldersList\">\n    <folder-item\n        v-for=\"folder in foldersList\"\n        v-bind:folder=\"folder\"\n        v-bind:selected-folder=\"selectedFolder\"\n        v-bind:key=\"folder.id\"\n        v-on:slide-to-mobile-panel=\"slideToMobilePanel\">\n    </folder-item>\n  </ul>\n  <ul class=\"m-folders-list\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No folders</span>\n    </li>\n  </ul>\n  ",
   computed: {
     notEmptyFoldersList: function notEmptyFoldersList() {
       return Boolean(this.foldersList.length);
     }
   },
-  methods: {}
+  methods: {
+    slideToMobilePanel: function slideToMobilePanel(area) {
+      this.$emit('slide-to-mobile-panel', area);
+    }
+  }
 });
 Vue.component('folder-item', {
   props: ['folder', 'selectedFolder'],
@@ -2115,10 +2238,15 @@ Vue.component('folder-item', {
 });
 Vue.component('tags-list', {
   props: ['tagsList', 'selectedTag'],
-  template: "\n  <ul class=\"m-folders-list m-folders-list--tags\" v-if=\"notEmptyTagsList\">\n    <tags-folder-item\n        v-for=\"tag in tagsList\"\n        v-bind:tag=\"tag\"\n        v-bind:selected-tag=\"selectedTag\"\n        v-bind:key=\"tag.id\">\n    </tags-folder-item>\n  </ul>\n  <ul class=\"m-folders-list m-folders-list--tags\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No tags</span>\n    </li>\n  </ul>\n  ",
+  template: "\n  <ul class=\"m-folders-list m-folders-list--tags\" v-if=\"notEmptyTagsList\">\n    <tags-folder-item\n        v-for=\"tag in tagsList\"\n        v-bind:tag=\"tag\"\n        v-bind:selected-tag=\"selectedTag\"\n        v-bind:key=\"tag.id\"\n        v-on:slide-to-mobile-panel=\"slideToMobilePanel\">\n    </tags-folder-item>\n  </ul>\n  <ul class=\"m-folders-list m-folders-list--tags\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No tags</span>\n    </li>\n  </ul>\n  ",
   computed: {
     notEmptyTagsList: function notEmptyTagsList() {
       return Boolean(this.tagsList.length);
+    }
+  },
+  methods: {
+    slideToMobilePanel: function slideToMobilePanel(area) {
+      this.$emit('slide-to-mobile-panel', area);
     }
   }
 });
@@ -2792,7 +2920,9 @@ function () {
     get: function get() {
       return {
         ENABLE_PUSH_NOTIFICATION: 'push-notification:enable',
-        SUBSCRIPTION_SUCCESS_NOTIFICATION: 'push-subscription:success'
+        SUBSCRIPTION_SUCCESS_NOTIFICATION: 'push-subscription:success',
+        NOTE_CREATED_SYNC_COMPLETE: 'note:created:sync-complete',
+        NOTE_UPDATED_SYNC_COMPLETE: 'note:update:sync-complete'
       };
     }
   }]);
@@ -3028,15 +3158,13 @@ function () {
           });
         });
         return promise;
-      }).catch(function (err) {
-        console.log('error:', err);
       });
     }
   }, {
     key: "syncTag",
     value: function syncTag(tagId) {
       var notesDb = new _NotesDB.default();
-      notesDb.getTagById(tagId).then(function (tag) {
+      return notesDb.getTagById(tagId).then(function (tag) {
         // check if tag exists in idb
         var promise = new Promise(function (resolve, reject) {
           if (tag) {
@@ -3083,14 +3211,15 @@ function () {
         return promise;
       }).then(function (tagHandle) {
         // refresh notes with tag
-        _axios.default.get("/tags/".concat(tagHandle)).then(function (response) {
-          notesDb.addNotesToTag(response.data, tagHandle);
-          console.log('tag sync successful');
-        }).catch(function (err) {
-          console.log(" |- fetch notes with tag ".concat(tagHandle, ": ").concat(err));
+        var promise = new Promise(function (resolve, reject) {
+          _axios.default.get("/tags/".concat(tagHandle)).then(function (response) {
+            notesDb.addNotesToTag(response.data, tagHandle);
+            resolve(true);
+          }).catch(function (err) {
+            reject("error fetching notes with tag ".concat(tagHandle, ": ").concat(err));
+          });
         });
-      }).catch(function (err) {
-        console.log('error', err);
+        return promise;
       });
     }
   }]);

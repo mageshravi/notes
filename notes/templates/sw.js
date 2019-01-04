@@ -164,134 +164,179 @@ function sendMessageToAllClients(msg) {
   })
 }
 
+// handle messages sent from clients
 self.addEventListener('message', event => {
-  if (event.data.action === 'skipWaiting') {
-    self.skipWaiting()
+  switch (event.data.action) {
+    case 'skipWaiting':
+      self.skipWaiting()
 
-    // let clients know to refresh page
-    sendMessageToAllClients({action:'page:reload'})
-  }
+      // let clients know to refresh page
+      sendMessageToAllClients({action: 'page:reload'})
+      break
 
-  if (event.data.action === 'push-subscription:success') {
-    self.registration.showNotification(
-      'You are awesome',
-      {
-        body: 'Push notifications have been enabled on this device',
-        icon: 'https://i.imgur.com/MZM3K5w.png'
-      }
-    )
+    case 'push-subscription:success':
+      self.registration.showNotification(
+        'You are awesome',
+        {
+          body: 'Push notifications have been enabled on this device',
+          icon: '/static/wicons/notes/128x128.png'
+        }
+      )
+      break
+
+    case 'note:created:sync-complete':
+      self.registration.showNotification(
+        event.data.notification.title,
+        event.data.notification.options
+      )
+      break
   }
 })
 
 /**
  * Gets the first non-admin client from the connected clients list
- * @param {Function} callback The callback function
  */
-function getFirstNonAdminClient(callback) {
-  clients.matchAll().then(clientsList => {
-    // get client that is not associated with admin panel i.e., /admin/
-    let i = 0
-    let nonAdminClient = clientsList[i]
-    const adminUrlPattern = /\/admin\//
-    while (adminUrlPattern.test(clientsList[i].url)) {
-      i++
-      nonAdminClient = clientsList[i]
-    }
+function getFirstNonAdminClient() {
+  return clients.matchAll()
+    .then(clientsList => {
+      let promise = new Promise((resolve, reject) => {
+        if (clientsList.length <= 0) {
+          reject('no clients found')
+        }
 
-    if (typeof callback === 'function') {
-      callback(nonAdminClient)
-    }
-  })
+        // get client that is not associated with admin panel i.e., /admin/
+        const adminUrlPattern = /\/admin\//
+        let nonAdminClient
+        for (let i = 0; i < clientsList.length; i++) {
+          let curClient = clientsList[i]
+          if (!adminUrlPattern.test(nonAdminClient)) {
+            nonAdminClient = curClient
+          }
+        }
+
+        if (nonAdminClient) {
+          resolve(nonAdminClient)
+        } else {
+          reject('no non-admin clients found')
+        }
+      })
+      return promise
+    })
 }
 
+// handle messages sent from server
 self.addEventListener('push', (event) => {
   const eventInfo = event.data.text()
   const data = JSON.parse(eventInfo)
+
+  console.log('[ServiceWorker] Push message received: ', data)
 
   const title = data.head || 'New notification'
   const body = data.body || 'This is default content. Your notification didn\'t have one'
   const icon = data.icon || '/static/wicons/notes/128x128.png'
 
-  // notification payload
-  let payload = {
-    body: body,
-    icon: icon,
-    data: {
-      ...(data.url && {url: data.url})
+  let notificationData = {
+    title: title,
+    options: {
+      body: body,
+      icon: icon,
+      data: {
+        ...(data.url && {url: data.url})
+      }
     }
   }
 
+  // display notification
+  event.waitUntil(
+    self.registration.showNotification(
+      notificationData.title,
+      notificationData.options
+    )
+  )
+
   switch (data.type) {
     case 'note:created':
-      console.log('[ServiceWorker] A new note has been created', data)
-
-      if (!'noteData' in data) {
-        return
-      }
-
-      // we do not want multiple clients to start syncing data
-      // send message to first client only
-      getFirstNonAdminClient(nonAdminClient => {
-        sendMessageToClient(
-          nonAdminClient,
-          {
-            action: 'note:created',
-            noteData: data.noteData
-          }
-        ).then(msg => {
-          console.log('[ServiceWorker] Message sent to client: ', msg)
-        })
-      })
-      break
-
     case 'note:updated':
-      console.log('[ServiceWorker] A note has been updated', data)
-
+    case 'note:deleted':
+      // fall-through intentional
       if (!'noteData' in data) {
         return
       }
+
       // we do not want multiple clients to start syncing data
-      // send message to first client only
-      getFirstNonAdminClient(nonAdminClient => {
-        sendMessageToClient(
-          nonAdminClient,
-          {
-            action: 'note:updated',
-            noteData: data.noteData
-          }
-        ).then(msg => {
-          console.log('[ServiceWorker] Message sent to client: ', msg)
+      // send message to first client only. If no tabs/windows are open, then message is not sent.
+      getFirstNonAdminClient()
+        .then(nonAdminClient => {
+          sendMessageToClient(
+            nonAdminClient,
+            {
+              action: data.type,
+              noteData: data.noteData
+            }
+          )
+          .then(msg => {
+            console.log('[ServiceWorker] Message sent to client: ', msg)
+          })
+          .catch(err => {
+            console.log('[ServiceWorker] Error sending message to client', err)
+          })
         })
-      })
-
-      event.waitUntil(
-        self.registration.showNotification(
-          title,
-          payload
-        )
-      )
       break
 
-    case 'note:deleted':
-      console.log('[ServiceWorker] Note deleted', data)
-      break
     case 'folder:created':
-      console.log('[ServiceWorker] Folder created', data)
-      break
     case 'folder:updated':
-      console.log('[ServiceWorker] Folder updated', data)
-      break
     case 'folder:deleted':
-      console.log('[ServiceWorker] Folder deleted', data)
+      // fall-through intentional
+      if (!'folderData' in data) {
+        return
+      }
+
+      // we do not want multiple clients to start syncing data
+      // send message to first client only. If no tabs/windows are open, then message is not sent.
+      getFirstNonAdminClient()
+        .then(nonAdminClient => {
+          sendMessageToClient(
+            nonAdminClient,
+            {
+              action: data.type,
+              folderData: data.folderData
+            }
+          )
+          .then(msg => {
+            console.log('[ServiceWorker] Message sent to client: ', msg)
+          })
+          .catch(err => {
+            console.log('[ServiceWorker] Error sending message to client', err)
+          })
+        })
       break
+
     case 'tag:created':
-      console.log('[ServiceWorker] Tag created', data)
-      break
     case 'tag:updated':
-      console.log('[ServiceWorker] Tag updated', data)
-      break
     case 'tag:deleted':
-      console.log('[ServiceWorker] Tag deleted', data)
+      // fall-through intentional
+      if (!'tagData' in data) {
+        return
+      }
+
+      // we do not want multiple clients to start syncing data
+      // send message to first client only. If no tabs/windows are open, then message is not sent.
+      getFirstNonAdminClient()
+        .then(nonAdminClient => {
+          sendMessageToClient(
+            nonAdminClient,
+            {
+              action: data.type,
+              tagData: data.tagData
+            }
+          )
+          .then(msg => {
+            console.log('[ServiceWorker] Message sent to client: ', msg)
+          })
+          .catch(err => {
+            console.log('[ServiceWorker] Error sending message to client', err)
+          })
+        })
       break
 
     default:
