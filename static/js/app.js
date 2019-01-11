@@ -2007,8 +2007,8 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
       var notesSync = new _NotesSync.default();
       var notesDb = new _NotesDB.default();
       var note, folderId, tagIds;
+      var folder, tag;
       var promiseArray;
-      var notification;
 
       switch (ev.data.action) {
         case 'page:reload':
@@ -2018,8 +2018,7 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
         case 'note:created':
           // TL;DR: sync folders, tags, then fetch note-detail
           // finally notify sw to display notification
-          note = ev.data.noteData;
-          notification = ev.data.notificationData; // sync folder
+          note = ev.data.noteData; // sync folder
 
           folderId = note.meta.folder;
           notesSync.syncFolder(folderId).then(function (result) {
@@ -2049,12 +2048,6 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
                 resolve();
               });
               return promise;
-            });
-          }).then(function () {
-            // notify service-worker to display notification
-            navigator.serviceWorker.controller.postMessage({
-              action: _NotesPushManager.default.EVENTS.NOTE_CREATED_SYNC_COMPLETE,
-              notification: notification
             });
           }).catch(function (err) {
             console.log('Error syncing data for note:created', err);
@@ -2086,27 +2079,40 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
               });
               return promise;
             });
-          }).then(function () {
-            // notify service-worker to display notification
-            navigator.serviceWorker.controller.postMessage({
-              action: _NotesPushManager.default.EVENTS.NOTE_UPDATED_SYNC_COMPLETE,
-              notification: notification
-            });
           }).catch(function (err) {
             console.log('Error syncing data for note:updated', err);
           });
           break;
 
         case 'note:deleted':
-          // delete note from
-          // 1. notesInFolders
-          // 2. notesWithTags
-          // 3. noteDetail
+          note = ev.data.noteData;
+          folderId = note.meta.folder;
+          notesDb.getFolderById(folderId).then(function (folder) {
+            // delete note from notesInFolders
+            notesDb.deleteNoteFromFolder(note, folder.name).then(function (result) {
+              console.log('Deleted from notesInFolder');
+            });
+          });
+          tagIds = note.meta.tags;
+          tagIds.forEach(function (tagId) {
+            notesDb.getTagById(tagId).then(function (tag) {
+              // delete note from notesWithTags
+              notesDb.deleteNoteWithTag(note, tag.handle).then(function (result) {
+                console.log('Deleted from notesWithTag');
+              });
+            });
+          });
+          notesDb.deleteNoteDetail(note.slug).then(function (result) {
+            console.log('Deleted noteDetail');
+          });
           break;
 
         case 'folder:created':
-          // add to folders
-          // fetch notesInFolders
+          folder = ev.data.folderData;
+          notesDb.addFolder(folder).then(function (result) {
+            console.log('Folder created');
+            triggerRefreshFoldersEvent();
+          });
           break;
 
         case 'folder:updated':
@@ -2118,6 +2124,14 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
 
         case 'folder:deleted':
           // delete folder and notesInFolder
+          folder = ev.data.folderData;
+          notesDb.deleteFolder(folder.id).then(function (result) {
+            console.log('Deleted from folders');
+            triggerRefreshFoldersEvent();
+          });
+          notesDb.deleteAllNotesInFolder(folder.name).then(function (result) {
+            console.log('Deleted from notesInFolder');
+          });
           break;
 
         case 'tag:created':
@@ -2134,6 +2148,13 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
 
         case 'tag:deleted':
           // delete tag and notesWithTags
+          tag = ev.data.tagData;
+          notesDb.deleteTag(tag.id).then(function (result) {
+            console.log('Deleted from tags');
+          });
+          notesDb.deleteAllNotesWithTag(tag.handle).then(function (result) {
+            console.log('Deleted from notesWithTags');
+          });
           break;
       }
     });
@@ -2767,7 +2788,7 @@ function () {
   }, {
     key: "addFolder",
     value: function addFolder(folder) {
-      this.dbPromise.then(function (db) {
+      return this.dbPromise.then(function (db) {
         var tx = db.transaction('folders', 'readwrite');
         var folderStore = tx.objectStore('folders');
         folderStore.put(folder);
@@ -2884,6 +2905,80 @@ function () {
         var tx = db.transaction('noteDetail');
         var noteDetailStore = tx.objectStore('noteDetail');
         return noteDetailStore.get(noteSlug);
+      });
+    }
+  }, {
+    key: "deleteNoteFromFolder",
+    value: function deleteNoteFromFolder(note, folderName) {
+      var _this3 = this;
+
+      return this.getNotesInFolder(folderName).then(function (notesList) {
+        var filteredNotes = notesList.filter(function (curNote) {
+          return curNote.id !== note.id;
+        });
+        return _this3.addNotesToFolder(filteredNotes, folderName);
+      });
+    }
+  }, {
+    key: "deleteNoteWithTag",
+    value: function deleteNoteWithTag(note, tagHandle) {
+      var _this4 = this;
+
+      return this.getNotesWithTag(tagHandle).then(function (notesList) {
+        var filteredNotes = notesList.filter(function (curNote) {
+          return curNote.id !== note.id;
+        });
+        return _this4.addNotesToTag(filteredNotes, tagHandle);
+      });
+    }
+  }, {
+    key: "deleteNoteDetail",
+    value: function deleteNoteDetail(noteSlug) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('noteDetail', 'readwrite');
+        var noteDetailStore = tx.objectStore('noteDetail');
+        noteDetailStore.delete(noteSlug);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteFolder",
+    value: function deleteFolder(folderId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('folders', 'readwrite');
+        var folderStore = tx.objectStore('folders');
+        folderStore.delete(folderId);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteAllNotesInFolder",
+    value: function deleteAllNotesInFolder(folderName) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('notesInFolders', 'readwrite');
+        var notesStore = tx.objectStore('notesInFolders');
+        notesStore.delete(folderName);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteTag",
+    value: function deleteTag(tagId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('tags', 'readwrite');
+        var tagStore = tx.objectStore('tags');
+        tagStore.delete(tagId);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteAllNotesWithTag",
+    value: function deleteAllNotesWithTag(tagHandle) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('notesWithTags', 'readwrite');
+        var notesStore = tx.objectStore('notesWithTags');
+        notesStore.delete(tagHandle);
+        return tx.complete;
       });
     }
   }]);

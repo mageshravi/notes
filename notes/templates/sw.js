@@ -75,6 +75,8 @@ self.addEventListener('activate', function (ev) {
 
           return new Promise((resolve, reject) => {
             if (isDeleted && isAdded) {
+              // let clients know to refresh page
+              sendMessageToAllClients({action: 'page:reload'})
               resolve(true)
             } else {
               reject('deleted: ' + isDeleted + ', added: ' + isAdded)

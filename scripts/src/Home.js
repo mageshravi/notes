@@ -57,8 +57,8 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
       let notesSync = new NotesSync()
       let notesDb = new NotesDB()
       let note, folderId, tagIds
+      let folder, tag
       let promiseArray
-      let notification
 
       switch (ev.data.action) {
         case 'page:reload':
@@ -70,7 +70,6 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
           // finally notify sw to display notification
 
           note = ev.data.noteData
-          notification = ev.data.notificationData
 
           // sync folder
           folderId = note.meta.folder
@@ -108,13 +107,6 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
                   return promise
                 })
             })
-            .then(() => {
-              // notify service-worker to display notification
-              navigator.serviceWorker.controller.postMessage({
-                action: NotesPushManager.EVENTS.NOTE_CREATED_SYNC_COMPLETE,
-                notification: notification
-              })
-            })
             .catch(err => {
               console.log('Error syncing data for note:created', err)
             })
@@ -150,28 +142,49 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
                   return promise
                 })
             })
-            .then(() => {
-              // notify service-worker to display notification
-              navigator.serviceWorker.controller.postMessage({
-                action: NotesPushManager.EVENTS.NOTE_UPDATED_SYNC_COMPLETE,
-                notification: notification
-              })
-            })
             .catch(err => {
               console.log('Error syncing data for note:updated', err)
             })
           break
 
         case 'note:deleted':
-          // delete note from
-          // 1. notesInFolders
-          // 2. notesWithTags
-          // 3. noteDetail
+          note = ev.data.noteData
+
+          folderId = note.meta.folder
+          notesDb.getFolderById(folderId)
+            .then(folder => {
+              // delete note from notesInFolders
+              notesDb.deleteNoteFromFolder(note, folder.name)
+                .then(result => {
+                  console.log('Deleted from notesInFolder')
+                })
+            })
+
+          tagIds = note.meta.tags
+          tagIds.forEach(tagId => {
+            notesDb.getTagById(tagId)
+              .then(tag => {
+                // delete note from notesWithTags
+                notesDb.deleteNoteWithTag(note, tag.handle)
+                  .then(result => {
+                    console.log('Deleted from notesWithTag')
+                  })
+              })
+          })
+
+          notesDb.deleteNoteDetail(note.slug)
+            .then(result => {
+              console.log('Deleted noteDetail')
+            })
           break
 
         case 'folder:created':
-          // add to folders
-          // fetch notesInFolders
+          folder = ev.data.folderData
+          notesDb.addFolder(folder)
+            .then(result => {
+              console.log('Folder created')
+              triggerRefreshFoldersEvent()
+            })
           break
 
         case 'folder:updated':
@@ -183,6 +196,16 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
 
         case 'folder:deleted':
           // delete folder and notesInFolder
+          folder = ev.data.folderData
+          notesDb.deleteFolder(folder.id)
+            .then(result => {
+              console.log('Deleted from folders')
+              triggerRefreshFoldersEvent()
+            })
+          notesDb.deleteAllNotesInFolder(folder.name)
+            .then(result => {
+              console.log('Deleted from notesInFolder')
+            })
           break
 
         case 'tag:created':
@@ -199,6 +222,15 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
 
         case 'tag:deleted':
           // delete tag and notesWithTags
+          tag = ev.data.tagData
+          notesDb.deleteTag(tag.id)
+            .then(result => {
+              console.log('Deleted from tags')
+            })
+          notesDb.deleteAllNotesWithTag(tag.handle)
+            .then(result => {
+              console.log('Deleted from notesWithTags')
+            })
           break
       }
     })
