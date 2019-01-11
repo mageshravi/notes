@@ -28,7 +28,7 @@
                     v-bind:folders-list="foldersList"
                     v-bind:selected-folder="selectedFolder"
                     v-on:slide-to-mobile-panel="slideToMobilePanel"
-                    v-on:refresh-folders="refreshFolders">
+                    v-on:refresh-folders.native="refreshFolders">
                 </folders-list>
 
                 <h2 class="m-folders__title">Tags</h2>
@@ -36,7 +36,7 @@
                     v-bind:tags-list="tagsList"
                     v-bind:selected-tag="selectedTag"
                     v-on:slide-to-mobile-panel="slideToMobilePanel"
-                    v-on:refresh-tags="refreshTags">
+                    v-on:refresh-tags.native="refreshTags">
                 </tags-list>
             </div>
             <div class="l-notes m-notes">
