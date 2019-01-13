@@ -284,7 +284,7 @@ Vue.component('push-prompt', {
       document.dispatchEvent(ev)
     },
     refreshPushPrompt () {
-      this.showPushPrompt = (Notification.permission === 'default')
+      this.showPushPrompt = window.Notification ? (Notification.permission === 'default') : false
     }
   }
 })
@@ -574,7 +574,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
   data: {
     updateAvailable: false,
     updateNotificationDismissed: false,
-    showPushPrompt: (Notification.permission === 'default'),
+    showPushPrompt: window.Notification ? (Notification.permission === 'default') : false,
     dbPopulated: false,
     foldersList: [],
     tagsList: [],
@@ -594,7 +594,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       // TODO: stop spinner
     },
     refreshPushPrompt () {
-      this.showPushPrompt = (Notification.permission === 'default')
+      this.showPushPrompt = window.Notification ? (Notification.permission === 'default') : false
     },
     populateDatabase (resource) {
       if (this.dbPopulated) {
