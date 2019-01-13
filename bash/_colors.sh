@@ -109,7 +109,7 @@ function debug() {
 }
 
 function read_input() {
-    color="${txtblu}"
+    color="${txtcyn}"
     tag=`printf "%9s" '[INPUT]'`
     question="${1}"
 
