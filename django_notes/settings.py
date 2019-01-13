@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'sslserver',
+    'webpush',
     'ckeditor',
     'notes',
 ]
@@ -68,6 +70,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'notes.context_processors.vapid_attrs',
             ],
         },
     },
@@ -113,6 +116,16 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# WebPush settings
+# https://www.digitalocean.com/community/tutorials/how-to-send-web-push-notifications-from-django-applications
+
+WEBPUSH_SETTINGS = {
+    'VAPID_PUBLIC_KEY': os.environ.get('DJANGO_VAPID_PUBLIC_KEY'),
+    'VAPID_PRIVATE_KEY': os.environ.get('DJANGO_VAPID_PRIVATE_KEY'),
+    'VAPID_ADMIN_EMAIL': os.environ.get('DJANGO_VAPID_ADMIN_EMAIL')
+}
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
 
@@ -152,4 +165,35 @@ CKEDITOR_CONFIGS = {
             ['RemoveFormat', 'Source']
         ]
     }
+}
+
+
+# logging
+# https://docs.djangoproject.com/en/2.0/topics/logging/
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'notes': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': True,
+        }
+    }
+}
+
+PUSH_NOTIFICATION_GROUPS = {
+    'default': os.getenv('DJANGO_PUSH_NOTIFICATION_GROUP_DEFAULT', 'notes-app-public')
 }

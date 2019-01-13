@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="apple-mobile-web-capable" content="yes">
+    <meta name="vapid-key" content="{{ vapid_key }}">
     <title>Notes</title>
     <link rel="stylesheet" href="{% static 'css/style_above_fold.css' %}">
     <link rel="apple-touch-icon" sizes="152x152" href="{% static 'wicons/notes/152x152.png' %}">
@@ -19,39 +20,24 @@
             v-bind:update-available="updateAvailable"
             v-bind:dismissed="updateNotificationDismissed">
         </update-notification>
+        <push-prompt v-bind:show-push-prompt="showPushPrompt"></push-prompt>
         <div class="l-wrapper">
             <div class="l-folders m-folders">
                 <h2 class="m-folders__title">Folders</h2>
-                <ul class="m-folders-list" v-if="notEmptyFoldersList">
-                    <folder-item
-                        v-for="folder in foldersList"
-                        v-bind:folder="folder"
-                        v-bind:selected-folder="selectedFolder"
-                        v-bind:key="folder.id"
-                        v-on:slide-to-mobile-panel="slideToMobilePanel">
-                    </folder-item>
-                </ul>
-                <ul class="m-folders-list" v-else>
-                    <li class="m-folders-list__item is-disabled">
-                        <span class="m-folders-list__link">No folders</span>
-                    </li>
-                </ul>
+                <folders-list
+                    v-bind:folders-list="foldersList"
+                    v-bind:selected-folder="selectedFolder"
+                    v-on:slide-to-mobile-panel="slideToMobilePanel"
+                    v-on:refresh-folders.native="refreshFolders">
+                </folders-list>
 
                 <h2 class="m-folders__title">Tags</h2>
-                <ul class="m-folders-list m-folders-list--tags" v-if="notEmptyTagsList">
-                    <tags-folder-item
-                        v-for="tag in tagsList"
-                        v-bind:tag="tag"
-                        v-bind:selected-tag="selectedTag"
-                        v-bind:key="tag.id"
-                        v-on:slide-to-mobile-panel="slideToMobilePanel">
-                    </tags-folder-item>
-                </ul>
-                <ul class="m-folders-list m-folders-list--tags" v-else>
-                    <li class="m-folders-list__item is-disabled">
-                        <span class="m-folders-list__link">No tags</span>
-                    </li>
-                </ul>
+                <tags-list
+                    v-bind:tags-list="tagsList"
+                    v-bind:selected-tag="selectedTag"
+                    v-on:slide-to-mobile-panel="slideToMobilePanel"
+                    v-on:refresh-tags.native="refreshTags">
+                </tags-list>
             </div>
             <div class="l-notes m-notes">
                 {% verbatim %}

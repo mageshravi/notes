@@ -21,7 +21,7 @@ class NotesDB { // eslint-disable-line no-unused-vars
   }
 
   addFolder (folder) {
-    this.dbPromise.then(db => {
+    return this.dbPromise.then(db => {
       var tx = db.transaction('folders', 'readwrite')
       var folderStore = tx.objectStore('folders')
       folderStore.put(folder)
@@ -71,11 +71,27 @@ class NotesDB { // eslint-disable-line no-unused-vars
     })
   }
 
+  getFolderById (folderId) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('folders')
+      var folderStore = tx.objectStore('folders')
+      return folderStore.get(folderId)
+    })
+  }
+
   getAllFolders () {
     return this.dbPromise.then(db => {
       var tx = db.transaction('folders')
       var folderStore = tx.objectStore('folders')
       return folderStore.getAll()
+    })
+  }
+
+  getTagById (tagId) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('tags')
+      var tagStore = tx.objectStore('tags')
+      return tagStore.get(tagId)
     })
   }
 
@@ -108,6 +124,71 @@ class NotesDB { // eslint-disable-line no-unused-vars
       var tx = db.transaction('noteDetail')
       var noteDetailStore = tx.objectStore('noteDetail')
       return noteDetailStore.get(noteSlug)
+    })
+  }
+
+  deleteNoteFromFolder (note, folderName) {
+    return this.getNotesInFolder(folderName)
+      .then(notesList => {
+        var filteredNotes = notesList.filter(curNote => {
+          return (curNote.id !== note.id)
+        })
+        return this.addNotesToFolder(filteredNotes, folderName)
+      })
+  }
+
+  deleteNoteWithTag (note, tagHandle) {
+    return this.getNotesWithTag(tagHandle)
+      .then(notesList => {
+        var filteredNotes = notesList.filter(curNote => {
+          return (curNote.id !== note.id)
+        })
+        return this.addNotesToTag(filteredNotes, tagHandle)
+      })
+  }
+
+  deleteNoteDetail (noteSlug) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('noteDetail', 'readwrite')
+      var noteDetailStore = tx.objectStore('noteDetail')
+      noteDetailStore.delete(noteSlug)
+      return tx.complete
+    })
+  }
+
+  deleteFolder (folderId) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('folders', 'readwrite')
+      var folderStore = tx.objectStore('folders')
+      folderStore.delete(folderId)
+      return tx.complete
+    })
+  }
+
+  deleteAllNotesInFolder (folderName) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('notesInFolders', 'readwrite')
+      var notesStore = tx.objectStore('notesInFolders')
+      notesStore.delete(folderName)
+      return tx.complete
+    })
+  }
+
+  deleteTag (tagId) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('tags', 'readwrite')
+      var tagStore = tx.objectStore('tags')
+      tagStore.delete(tagId)
+      return tx.complete
+    })
+  }
+
+  deleteAllNotesWithTag (tagHandle) {
+    return this.dbPromise.then(db => {
+      var tx = db.transaction('notesWithTags', 'readwrite')
+      var notesStore = tx.objectStore('notesWithTags')
+      notesStore.delete(tagHandle)
+      return tx.complete
     })
   }
 }

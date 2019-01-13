@@ -1954,18 +1954,29 @@ var _axios = _interopRequireDefault(require("axios"));
 
 var _NotesDB = _interopRequireDefault(require("./NotesDB"));
 
+var _NotesSync = _interopRequireDefault(require("./NotesSync"));
+
+var _NotesPushManager = _interopRequireDefault(require("./NotesPushManager"));
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /* global Vue */
 
 /* global hljs */
+
+/* global Notification, Event */
 // VueJS is best used with requireJS/browserify when written with single-file components.
 // Hence including VueJS within a script tag, for now.
 var newWorker;
 window.isUpdateAvailable = new Promise(function (resolve, reject) {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').then(function (reg) {
-      console.log('Service Worker registered');
+    var regPromise = navigator.serviceWorker.register('/sw.js');
+    regPromise.then(function (reg) {
+      console.log('Service Worker registered'); // setup push notification
+
+      var notesPM = new _NotesPushManager.default(reg);
+      notesPM.initialize(); // setup update prompts
+
       reg.addEventListener('updatefound', function () {
         newWorker = reg.installing;
         newWorker.addEventListener('statechange', function () {
@@ -1985,10 +1996,210 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
       });
     }).catch(function (err) {
       console.error('ServiceWorker registration failed', err);
+    }); // listen to messages from service worker
+
+    navigator.serviceWorker.addEventListener('message', function (ev) {
+      if (!('action' in ev.data)) {
+        return;
+      }
+
+      console.log('New message from ServiceWorker', ev.data.action);
+      var notesSync = new _NotesSync.default();
+      var notesDb = new _NotesDB.default();
+      var note, folderId, tagIds;
+      var folder, tag;
+      var promiseArray;
+
+      switch (ev.data.action) {
+        case 'page:reload':
+          window.location.reload();
+          break;
+
+        case 'note:created':
+          // TL;DR: sync folders, tags, then fetch note-detail
+          // finally notify sw to display notification
+          note = ev.data.noteData; // sync folder
+
+          folderId = note.meta.folder;
+          notesSync.syncFolder(folderId).then(function (result) {
+            var promise = new Promise(function (resolve, reject) {
+              triggerRefreshFoldersEvent();
+              resolve();
+            });
+            return promise;
+          }).then(function () {
+            // sync tags
+            tagIds = note.meta.tags;
+            promiseArray = tagIds.map(function (tagId) {
+              return notesSync.syncTag(tagId);
+            });
+            return Promise.all(promiseArray).then(function (resultArray) {
+              var promise = new Promise(function (resolve, reject) {
+                triggerRefreshTagsEvent();
+                resolve();
+              });
+              return promise;
+            });
+          }).then(function () {
+            // fetch note-detail
+            return _axios.default.get("/notes/".concat(note.slug)).then(function (response) {
+              var promise = new Promise(function (resolve, reject) {
+                notesDb.addNoteDetail(response.data);
+                resolve();
+              });
+              return promise;
+            });
+          }).catch(function (err) {
+            console.log('Error syncing data for note:created', err);
+          });
+          break;
+
+        case 'note:updated':
+          // TL;DR: sync folder, tags
+          // finally notify sw to display notification
+          note = ev.data.noteData; // sync folder
+
+          folderId = note.meta.folder;
+          notesSync.syncFolder(folderId).then(function (result) {
+            var promise = new Promise(function (resolve, reject) {
+              triggerRefreshFoldersEvent();
+              resolve();
+            });
+            return promise;
+          }).then(function () {
+            // sync tags
+            tagIds = note.meta.tags;
+            promiseArray = tagIds.map(function (tagId) {
+              return notesSync.syncTag(tagId);
+            });
+            return Promise.all(promiseArray).then(function (resultArray) {
+              var promise = new Promise(function (resolve, reject) {
+                triggerRefreshTagsEvent();
+                resolve();
+              });
+              return promise;
+            });
+          }).catch(function (err) {
+            console.log('Error syncing data for note:updated', err);
+          });
+          break;
+
+        case 'note:deleted':
+          note = ev.data.noteData;
+          folderId = note.meta.folder;
+          notesDb.getFolderById(folderId).then(function (folder) {
+            // delete note from notesInFolders
+            notesDb.deleteNoteFromFolder(note, folder.name).then(function (result) {
+              console.log('Deleted from notesInFolder');
+            });
+          });
+          tagIds = note.meta.tags;
+          tagIds.forEach(function (tagId) {
+            notesDb.getTagById(tagId).then(function (tag) {
+              // delete note from notesWithTags
+              notesDb.deleteNoteWithTag(note, tag.handle).then(function (result) {
+                console.log('Deleted from notesWithTag');
+              });
+            });
+          });
+          notesDb.deleteNoteDetail(note.slug).then(function (result) {
+            console.log('Deleted noteDetail');
+          });
+          break;
+
+        case 'folder:created':
+          folder = ev.data.folderData;
+          notesDb.addFolder(folder).then(function (result) {
+            console.log('Folder created');
+            triggerRefreshFoldersEvent();
+          });
+          break;
+
+        case 'folder:updated':
+          // very likely to be rename
+          // get old folder name from idb using the folder id. If found, update folder, then delete notesInFolder (for old folder).
+          // add new folder
+          // fetch notesInFolder for new folder
+          break;
+
+        case 'folder:deleted':
+          // delete folder and notesInFolder
+          folder = ev.data.folderData;
+          notesDb.deleteFolder(folder.id).then(function (result) {
+            console.log('Deleted from folders');
+            triggerRefreshFoldersEvent();
+          });
+          notesDb.deleteAllNotesInFolder(folder.name).then(function (result) {
+            console.log('Deleted from notesInFolder');
+          });
+          break;
+
+        case 'tag:created':
+          // add to tags
+          // fetch notesWithTags
+          break;
+
+        case 'tag:updated':
+          // very likely to be rename
+          // get old tag handle using the folder id. If found, update tags, then delete notesWithTags (for old tag)
+          // add new tag
+          // fetch notesWithTags for new tag
+          break;
+
+        case 'tag:deleted':
+          // delete tag and notesWithTags
+          tag = ev.data.tagData;
+          notesDb.deleteTag(tag.id).then(function (result) {
+            console.log('Deleted from tags');
+          });
+          notesDb.deleteAllNotesWithTag(tag.handle).then(function (result) {
+            console.log('Deleted from notesWithTags');
+          });
+          break;
+      }
     });
   }
-}); // Vue components
+});
+/**
+ * Triggers the refresh-folders event that updates the foldersList view after idb has been updated.
+ */
 
+function triggerRefreshFoldersEvent() {
+  var foldersListEl = document.querySelector('.m-folders-list');
+
+  if (foldersListEl) {
+    var refreshEvent = new Event('refresh-folders');
+    foldersListEl.dispatchEvent(refreshEvent);
+  }
+}
+/**
+ * Triggers the refresh-tags event that updates the tagsList view after idb has been updated.
+ */
+
+
+function triggerRefreshTagsEvent() {
+  var tagsListEl = document.querySelector('.m-folders-list--tags');
+
+  if (tagsListEl) {
+    var refreshEvent = new Event('refresh-tags');
+    tagsListEl.dispatchEvent(refreshEvent);
+  }
+} // Vue components
+
+
+Vue.component('push-prompt', {
+  props: ['showPushPrompt'],
+  template: "\n  <div id=\"enable-push-prompt\" class=\"m-push-prompt\"\n      v-if=\"showPushPrompt\" v-on:refresh=\"refreshPushPrompt\">\n    <div class=\"m-push-prompt__content\">\n      <img src=\"/static/wicons/push-notifications1.png\"/>\n      <p>\n        This app relies on push notifications to keep your notes up-to-date on this device.\n      </p>\n      <button id=\"enable-push-notifications\"\n        v-on:click=\"enablePushNotifications\">Enable Push Notifications</button>\n    </div>\n  </div>\n  ",
+  methods: {
+    enablePushNotifications: function enablePushNotifications() {
+      var ev = new Event(_NotesPushManager.default.EVENTS.ENABLE_PUSH_NOTIFICATION);
+      document.dispatchEvent(ev);
+    },
+    refreshPushPrompt: function refreshPushPrompt() {
+      this.showPushPrompt = window.Notification ? Notification.permission === 'default' : false;
+    }
+  }
+});
 Vue.component('update-notification', {
   props: ['updateAvailable', 'dismissed'],
   template: "\n  <div id=\"app-update-available\" class=\"m-banner-notification\"\n      v-bind:class=\"{'is-visible': isVisible}\">\n    <p class=\"m-banner-notification__message\">An update is available</p>\n    <div class=\"m-banner-notification__btn-wrapper\">\n      <button id=\"update-app\" class=\"m-btn\"\n        v-on:click=\"update\">Update</button>&nbsp;\n      <button class=\"m-btn\"\n        v-on:click=\"dismiss\">Later</button>\n    </div>\n  </div>\n  ",
@@ -2006,6 +2217,20 @@ Vue.component('update-notification', {
         action: 'skipWaiting'
       });
       this.updateAvailable = false;
+    }
+  }
+});
+Vue.component('folders-list', {
+  props: ['foldersList', 'selectedFolder'],
+  template: "\n  <ul class=\"m-folders-list\" v-if=\"notEmptyFoldersList\">\n    <folder-item\n        v-for=\"folder in foldersList\"\n        v-bind:folder=\"folder\"\n        v-bind:selected-folder=\"selectedFolder\"\n        v-bind:key=\"folder.id\"\n        v-on:slide-to-mobile-panel=\"slideToMobilePanel\">\n    </folder-item>\n  </ul>\n  <ul class=\"m-folders-list\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No folders</span>\n    </li>\n  </ul>\n  ",
+  computed: {
+    notEmptyFoldersList: function notEmptyFoldersList() {
+      return Boolean(this.foldersList.length);
+    }
+  },
+  methods: {
+    slideToMobilePanel: function slideToMobilePanel(area) {
+      this.$emit('slide-to-mobile-panel', area);
     }
   }
 });
@@ -2029,6 +2254,20 @@ Vue.component('folder-item', {
         this.$emit('slide-to-mobile-panel', 'notes-list');
         return false;
       }
+    }
+  }
+});
+Vue.component('tags-list', {
+  props: ['tagsList', 'selectedTag'],
+  template: "\n  <ul class=\"m-folders-list m-folders-list--tags\" v-if=\"notEmptyTagsList\">\n    <tags-folder-item\n        v-for=\"tag in tagsList\"\n        v-bind:tag=\"tag\"\n        v-bind:selected-tag=\"selectedTag\"\n        v-bind:key=\"tag.id\"\n        v-on:slide-to-mobile-panel=\"slideToMobilePanel\">\n    </tags-folder-item>\n  </ul>\n  <ul class=\"m-folders-list m-folders-list--tags\" v-else>\n    <li class=\"m-folders-list__item is-disabled\">\n      <span class=\"m-folders-list__link\">No tags</span>\n    </li>\n  </ul>\n  ",
+  computed: {
+    notEmptyTagsList: function notEmptyTagsList() {
+      return Boolean(this.tagsList.length);
+    }
+  },
+  methods: {
+    slideToMobilePanel: function slideToMobilePanel(area) {
+      this.$emit('slide-to-mobile-panel', area);
     }
   }
 });
@@ -2122,6 +2361,7 @@ var notesApp = new Vue({
   data: {
     updateAvailable: false,
     updateNotificationDismissed: false,
+    showPushPrompt: window.Notification ? Notification.permission === 'default' : false,
     dbPopulated: false,
     foldersList: [],
     tagsList: [],
@@ -2131,18 +2371,14 @@ var notesApp = new Vue({
     selectedTag: false,
     selectedNote: false
   },
-  computed: {
-    notEmptyFoldersList: function notEmptyFoldersList() {
-      return Boolean(this.foldersList.length);
-    },
-    notEmptyTagsList: function notEmptyTagsList() {
-      return Boolean(this.tagsList.length);
-    }
-  },
+  computed: {},
   methods: {
     startSpinner: function startSpinner() {// TODO: start spinner
     },
     stopSpinner: function stopSpinner() {// TODO: stop spinner
+    },
+    refreshPushPrompt: function refreshPushPrompt() {
+      this.showPushPrompt = window.Notification ? Notification.permission === 'default' : false;
     },
     populateDatabase: function populateDatabase(resource) {
       var _this = this;
@@ -2496,7 +2732,7 @@ window['isUpdateAvailable'].then(function (isAvailable) {
     notesApp.updateAvailable = true;
   }
 });
-},{"./NotesDB":30,"axios":1}],30:[function(require,module,exports){
+},{"./NotesDB":30,"./NotesPushManager":31,"./NotesSync":32,"axios":1}],30:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -2552,7 +2788,7 @@ function () {
   }, {
     key: "addFolder",
     value: function addFolder(folder) {
-      this.dbPromise.then(function (db) {
+      return this.dbPromise.then(function (db) {
         var tx = db.transaction('folders', 'readwrite');
         var folderStore = tx.objectStore('folders');
         folderStore.put(folder);
@@ -2609,12 +2845,30 @@ function () {
       });
     }
   }, {
+    key: "getFolderById",
+    value: function getFolderById(folderId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('folders');
+        var folderStore = tx.objectStore('folders');
+        return folderStore.get(folderId);
+      });
+    }
+  }, {
     key: "getAllFolders",
     value: function getAllFolders() {
       return this.dbPromise.then(function (db) {
         var tx = db.transaction('folders');
         var folderStore = tx.objectStore('folders');
         return folderStore.getAll();
+      });
+    }
+  }, {
+    key: "getTagById",
+    value: function getTagById(tagId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('tags');
+        var tagStore = tx.objectStore('tags');
+        return tagStore.get(tagId);
       });
     }
   }, {
@@ -2653,6 +2907,80 @@ function () {
         return noteDetailStore.get(noteSlug);
       });
     }
+  }, {
+    key: "deleteNoteFromFolder",
+    value: function deleteNoteFromFolder(note, folderName) {
+      var _this3 = this;
+
+      return this.getNotesInFolder(folderName).then(function (notesList) {
+        var filteredNotes = notesList.filter(function (curNote) {
+          return curNote.id !== note.id;
+        });
+        return _this3.addNotesToFolder(filteredNotes, folderName);
+      });
+    }
+  }, {
+    key: "deleteNoteWithTag",
+    value: function deleteNoteWithTag(note, tagHandle) {
+      var _this4 = this;
+
+      return this.getNotesWithTag(tagHandle).then(function (notesList) {
+        var filteredNotes = notesList.filter(function (curNote) {
+          return curNote.id !== note.id;
+        });
+        return _this4.addNotesToTag(filteredNotes, tagHandle);
+      });
+    }
+  }, {
+    key: "deleteNoteDetail",
+    value: function deleteNoteDetail(noteSlug) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('noteDetail', 'readwrite');
+        var noteDetailStore = tx.objectStore('noteDetail');
+        noteDetailStore.delete(noteSlug);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteFolder",
+    value: function deleteFolder(folderId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('folders', 'readwrite');
+        var folderStore = tx.objectStore('folders');
+        folderStore.delete(folderId);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteAllNotesInFolder",
+    value: function deleteAllNotesInFolder(folderName) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('notesInFolders', 'readwrite');
+        var notesStore = tx.objectStore('notesInFolders');
+        notesStore.delete(folderName);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteTag",
+    value: function deleteTag(tagId) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('tags', 'readwrite');
+        var tagStore = tx.objectStore('tags');
+        tagStore.delete(tagId);
+        return tx.complete;
+      });
+    }
+  }, {
+    key: "deleteAllNotesWithTag",
+    value: function deleteAllNotesWithTag(tagHandle) {
+      return this.dbPromise.then(function (db) {
+        var tx = db.transaction('notesWithTags', 'readwrite');
+        var notesStore = tx.objectStore('notesWithTags');
+        notesStore.delete(tagHandle);
+        return tx.complete;
+      });
+    }
   }]);
 
   return NotesDB;
@@ -2660,4 +2988,384 @@ function () {
 
 var _default = NotesDB;
 exports.default = _default;
-},{"idb":26}]},{},[29,30]);
+},{"idb":26}],31:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; var ownKeys = Object.keys(source); if (typeof Object.getOwnPropertySymbols === 'function') { ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function (sym) { return Object.getOwnPropertyDescriptor(source, sym).enumerable; })); } ownKeys.forEach(function (key) { _defineProperty(target, key, source[key]); }); } return target; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+/* global Notification, fetch, Event */
+var NotesPushManager =
+/*#__PURE__*/
+function () {
+  _createClass(NotesPushManager, null, [{
+    key: "EVENTS",
+    get: function get() {
+      return {
+        ENABLE_PUSH_NOTIFICATION: 'push-notification:enable',
+        SUBSCRIPTION_SUCCESS_NOTIFICATION: 'push-subscription:success',
+        NOTE_CREATED_SYNC_COMPLETE: 'note:created:sync-complete',
+        NOTE_UPDATED_SYNC_COMPLETE: 'note:update:sync-complete'
+      };
+    }
+  }]);
+
+  function NotesPushManager(reg) {
+    _classCallCheck(this, NotesPushManager);
+
+    this.reg = reg;
+    this.subscriptionGroup = 'notes-app-public';
+    this.subscriptionSaveUrl = '/webpush/save_information';
+  }
+
+  _createClass(NotesPushManager, [{
+    key: "initialize",
+    value: function initialize() {
+      if (!this.reg.showNotification) {
+        console.log('Showing notifications isn\'t supported');
+        return;
+      }
+
+      if (Notification.permission === 'denied') {
+        console.log('You prevented us from showing notifications');
+        return;
+      }
+
+      if (!('PushManager' in window)) {
+        console.log('Your browser does not support/allow push notifications');
+        return;
+      }
+
+      if (Notification.permission === 'granted') {
+        this.subscribe(this.reg);
+      } // DONT SUBSCRIBE YET. LET USERS KNOW WHY YOU NEED PUSH NOTIFICATION.
+      // ON CLICK, SUBSCRIBE.
+
+
+      var _this = this;
+
+      document.addEventListener(NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION, function () {
+        _this.subscribe(_this.reg);
+      });
+    }
+    /**
+     * ES5 implementation of repeat function
+     * @param str The string to repeat
+     * @param times No. of times to repeat
+     */
+
+  }, {
+    key: "repeatStr",
+    value: function repeatStr(str, times) {
+      var outputStr = '';
+
+      for (var i = 0; i < times; i++) {
+        outputStr += str;
+      }
+
+      return outputStr;
+    }
+    /**
+     * Convert base64 encoded string to Uint8Array
+     * @param base64String The base64 encoded string
+     */
+
+  }, {
+    key: "urlB64ToUint8Array",
+    value: function urlB64ToUint8Array(base64String) {
+      // const padding = '='.repeat((4 - base64String.length % 4) % 4)    // ES6 => repeat
+      var repeatCount = (4 - base64String.length % 4) % 4;
+      var padding = this.repeatStr('=', repeatCount);
+      var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      var rawData = window.atob(base64);
+      var outputArray = new Uint8Array(rawData.length);
+      var outputData = outputArray.map(function (output, index) {
+        return rawData.charCodeAt(index);
+      });
+      return outputData;
+    }
+  }, {
+    key: "subscribe",
+    value: function subscribe(reg) {
+      var _this2 = this;
+
+      reg.pushManager.getSubscription().then(function (subscription) {
+        if (subscription) {
+          _this2.sendSubscriptionData(subscription, false);
+
+          return;
+        }
+
+        var vapidMeta = document.querySelector('meta[name="vapid-key"]');
+        var key = vapidMeta.content;
+
+        var options = _objectSpread({
+          userVisibleOnly: true
+        }, key && {
+          applicationServerKey: _this2.urlB64ToUint8Array(key)
+        });
+
+        reg.pushManager.subscribe(options).then(function (sub) {
+          _this2.sendSubscriptionData(sub, true);
+        });
+      });
+    }
+  }, {
+    key: "sendSubscriptionData",
+    value: function sendSubscriptionData(subscription, notifyOnSuccess) {
+      var browser = navigator.userAgent.match(/(firefox|msie|chrome|safari|trident)/ig)[0].toLowerCase();
+      var data = {
+        status_type: 'subscribe',
+        subscription: subscription.toJSON(),
+        browser: browser,
+        group: this.subscriptionGroup // very important
+
+      };
+      fetch(this.subscriptionSaveUrl, {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: {
+          'content-type': 'application/json'
+        },
+        credentials: 'include'
+      }).then(function (response) {
+        // handle response
+        console.log('Push notification subscription saved successfully'); // show off a dummy notification
+
+        if (notifyOnSuccess) {
+          navigator.serviceWorker.controller.postMessage({
+            action: NotesPushManager.EVENTS.SUBSCRIPTION_SUCCESS_NOTIFICATION
+          });
+        } // get rid of the prompt
+
+
+        var pushPrompt = document.querySelector('#enable-push-prompt');
+
+        if (pushPrompt) {
+          var ev = new Event('refresh');
+          pushPrompt.dispatchEvent(ev);
+        }
+      });
+    }
+  }]);
+
+  return NotesPushManager;
+}();
+
+var _default = NotesPushManager;
+exports.default = _default;
+},{}],32:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _NotesDB = _interopRequireDefault(require("./NotesDB"));
+
+var _axios = _interopRequireDefault(require("axios"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var NotesSync =
+/*#__PURE__*/
+function () {
+  function NotesSync() {
+    _classCallCheck(this, NotesSync);
+  }
+
+  _createClass(NotesSync, [{
+    key: "syncFolder",
+    // eslint-disable-line no-unused-vars
+    value: function syncFolder(folderId) {
+      var notesDb = new _NotesDB.default();
+      return notesDb.getFolderById(folderId).then(function (folder) {
+        // check if folder exists in idb
+        var promise = new Promise(function (resolve, reject) {
+          if (folder) {
+            // folder exists
+            resolve({
+              folder: {
+                id: folder.id,
+                name: folder.name
+              },
+              syncFolders: false
+            });
+          } else {
+            // folder does not exist
+            resolve({
+              folder: {
+                id: folderId,
+                name: null
+              },
+              syncFolders: true
+            });
+          }
+        });
+        return promise;
+      }).then(function (result) {
+        // check if folders need to be synced
+        var promise = new Promise(function (resolve, reject) {
+          if (result.folder.name && !result.syncFolders) {
+            resolve(result.folder.name);
+          } else {
+            // folder not found in idb. sync folders
+            _axios.default.get("/folders").then(function (response) {
+              notesDb.addFolders(response.data);
+              notesDb.getFolderById(result.folder.id).then(function (folder) {
+                if (folder) {
+                  resolve(folder.name);
+                } else {
+                  reject("Unknown folder #".concat(result.folder.id));
+                }
+              });
+            });
+          }
+        });
+        return promise;
+      }).then(function (folderName) {
+        // refresh notes in folder
+        var promise = new Promise(function (resolve, reject) {
+          _axios.default.get("/folders/".concat(folderName)).then(function (response) {
+            notesDb.addNotesToFolder(response.data, folderName);
+            resolve(true);
+          }).catch(function (err) {
+            reject("error fetching notes in folder ".concat(folderName, ": ").concat(err));
+          });
+        });
+        return promise;
+      });
+    }
+  }, {
+    key: "syncTag",
+    value: function syncTag(tagId) {
+      var notesDb = new _NotesDB.default();
+      return notesDb.getTagById(tagId).then(function (tag) {
+        // check if tag exists in idb
+        var promise = new Promise(function (resolve, reject) {
+          if (tag) {
+            // tag exists
+            resolve({
+              tag: {
+                id: tag.id,
+                handle: tag.handle
+              },
+              syncTags: false
+            });
+          } else {
+            // tag does not exist
+            resolve({
+              tag: {
+                id: tagId,
+                handle: null
+              },
+              syncTags: true
+            });
+          }
+        });
+        return promise;
+      }).then(function (result) {
+        // check if tags need to be synced
+        var promise = new Promise(function (resolve, reject) {
+          if (result.tag.handle && !result.syncTags) {
+            resolve(result.tag.handle);
+          } else {
+            // tag not found in idb. sync tags
+            _axios.default.get("/tags").then(function (response) {
+              notesDb.addTags(response.data);
+              notesDb.getTagById(result.tag.id).then(function (tag) {
+                if (tag) {
+                  console.log("syncTag #".concat(result.tag.id, " => ").concat(tag.handle));
+                  resolve(tag.handle);
+                } else {
+                  reject("Unknown tag #".concat(result.tag.id));
+                }
+              });
+            });
+          }
+        });
+        return promise;
+      }).then(function (tagHandle) {
+        // refresh notes with tag
+        var promise = new Promise(function (resolve, reject) {
+          _axios.default.get("/tags/".concat(tagHandle)).then(function (response) {
+            notesDb.addNotesToTag(response.data, tagHandle);
+            resolve(true);
+          }).catch(function (err) {
+            reject("error fetching notes with tag ".concat(tagHandle, ": ").concat(err));
+          });
+        });
+        return promise;
+      });
+    }
+  }]);
+
+  return NotesSync;
+}();
+
+var _default = NotesSync;
+exports.default = _default;
+},{"./NotesDB":30,"axios":1}],33:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var SWMessages =
+/*#__PURE__*/
+function () {
+  function SWMessages() {
+    _classCallCheck(this, SWMessages);
+  }
+
+  _createClass(SWMessages, null, [{
+    key: "pageReload",
+    // eslint-disable-line no-unused-vars
+    get: function get() {
+      return 'page:reload';
+    }
+  }, {
+    key: "noteCreated",
+    get: function get() {
+      return 'note:created';
+    }
+  }, {
+    key: "noteUpdated",
+    get: function get() {
+      return 'note:updated';
+    }
+  }]);
+
+  return SWMessages;
+}();
+
+var _default = SWMessages;
+exports.default = _default;
+},{}]},{},[29,30,31,32,33]);

@@ -1,20 +1,30 @@
 /* global Vue */
 /* global hljs */
+/* global Notification, Event */
 
 // VueJS is best used with requireJS/browserify when written with single-file components.
 // Hence including VueJS within a script tag, for now.
 
 import axios from 'axios'
 import NotesDB from './NotesDB'
+import NotesSync from './NotesSync'
+import NotesPushManager from './NotesPushManager'
 
 let newWorker
 
 window.isUpdateAvailable = new Promise((resolve, reject) => {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
+    let regPromise = navigator.serviceWorker.register('/sw.js')
+
+    regPromise
       .then(reg => {
         console.log('Service Worker registered')
 
+        // setup push notification
+        let notesPM = new NotesPushManager(reg)
+        notesPM.initialize()
+
+        // setup update prompts
         reg.addEventListener('updatefound', () => {
           newWorker = reg.installing
           newWorker.addEventListener('statechange', () => {
@@ -35,10 +45,249 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
       .catch(err => {
         console.error('ServiceWorker registration failed', err)
       })
+
+    // listen to messages from service worker
+    navigator.serviceWorker.addEventListener('message', (ev) => {
+      if (!('action' in ev.data)) {
+        return
+      }
+
+      console.log('New message from ServiceWorker', ev.data.action)
+
+      let notesSync = new NotesSync()
+      let notesDb = new NotesDB()
+      let note, folderId, tagIds
+      let folder, tag
+      let promiseArray
+
+      switch (ev.data.action) {
+        case 'page:reload':
+          window.location.reload()
+          break
+
+        case 'note:created':
+          // TL;DR: sync folders, tags, then fetch note-detail
+          // finally notify sw to display notification
+
+          note = ev.data.noteData
+
+          // sync folder
+          folderId = note.meta.folder
+          notesSync.syncFolder(folderId)
+            .then(result => {
+              let promise = new Promise((resolve, reject) => {
+                triggerRefreshFoldersEvent()
+                resolve()
+              })
+              return promise
+            })
+            .then(() => {
+              // sync tags
+              tagIds = note.meta.tags
+              promiseArray = tagIds.map(tagId => {
+                return notesSync.syncTag(tagId)
+              })
+              return Promise.all(promiseArray)
+                .then(resultArray => {
+                  let promise = new Promise((resolve, reject) => {
+                    triggerRefreshTagsEvent()
+                    resolve()
+                  })
+                  return promise
+                })
+            })
+            .then(() => {
+              // fetch note-detail
+              return axios.get(`/notes/${note.slug}`)
+                .then(response => {
+                  let promise = new Promise((resolve, reject) => {
+                    notesDb.addNoteDetail(response.data)
+                    resolve()
+                  })
+                  return promise
+                })
+            })
+            .catch(err => {
+              console.log('Error syncing data for note:created', err)
+            })
+          break
+
+        case 'note:updated':
+          // TL;DR: sync folder, tags
+          // finally notify sw to display notification
+          note = ev.data.noteData
+
+          // sync folder
+          folderId = note.meta.folder
+          notesSync.syncFolder(folderId)
+            .then(result => {
+              let promise = new Promise((resolve, reject) => {
+                triggerRefreshFoldersEvent()
+                resolve()
+              })
+              return promise
+            })
+            .then(() => {
+              // sync tags
+              tagIds = note.meta.tags
+              promiseArray = tagIds.map(tagId => {
+                return notesSync.syncTag(tagId)
+              })
+              return Promise.all(promiseArray)
+                .then(resultArray => {
+                  let promise = new Promise((resolve, reject) => {
+                    triggerRefreshTagsEvent()
+                    resolve()
+                  })
+                  return promise
+                })
+            })
+            .catch(err => {
+              console.log('Error syncing data for note:updated', err)
+            })
+          break
+
+        case 'note:deleted':
+          note = ev.data.noteData
+
+          folderId = note.meta.folder
+          notesDb.getFolderById(folderId)
+            .then(folder => {
+              // delete note from notesInFolders
+              notesDb.deleteNoteFromFolder(note, folder.name)
+                .then(result => {
+                  console.log('Deleted from notesInFolder')
+                })
+            })
+
+          tagIds = note.meta.tags
+          tagIds.forEach(tagId => {
+            notesDb.getTagById(tagId)
+              .then(tag => {
+                // delete note from notesWithTags
+                notesDb.deleteNoteWithTag(note, tag.handle)
+                  .then(result => {
+                    console.log('Deleted from notesWithTag')
+                  })
+              })
+          })
+
+          notesDb.deleteNoteDetail(note.slug)
+            .then(result => {
+              console.log('Deleted noteDetail')
+            })
+          break
+
+        case 'folder:created':
+          folder = ev.data.folderData
+          notesDb.addFolder(folder)
+            .then(result => {
+              console.log('Folder created')
+              triggerRefreshFoldersEvent()
+            })
+          break
+
+        case 'folder:updated':
+          // very likely to be rename
+          // get old folder name from idb using the folder id. If found, update folder, then delete notesInFolder (for old folder).
+          // add new folder
+          // fetch notesInFolder for new folder
+          break
+
+        case 'folder:deleted':
+          // delete folder and notesInFolder
+          folder = ev.data.folderData
+          notesDb.deleteFolder(folder.id)
+            .then(result => {
+              console.log('Deleted from folders')
+              triggerRefreshFoldersEvent()
+            })
+          notesDb.deleteAllNotesInFolder(folder.name)
+            .then(result => {
+              console.log('Deleted from notesInFolder')
+            })
+          break
+
+        case 'tag:created':
+          // add to tags
+          // fetch notesWithTags
+          break
+
+        case 'tag:updated':
+          // very likely to be rename
+          // get old tag handle using the folder id. If found, update tags, then delete notesWithTags (for old tag)
+          // add new tag
+          // fetch notesWithTags for new tag
+          break
+
+        case 'tag:deleted':
+          // delete tag and notesWithTags
+          tag = ev.data.tagData
+          notesDb.deleteTag(tag.id)
+            .then(result => {
+              console.log('Deleted from tags')
+            })
+          notesDb.deleteAllNotesWithTag(tag.handle)
+            .then(result => {
+              console.log('Deleted from notesWithTags')
+            })
+          break
+      }
+    })
   }
 })
 
+/**
+ * Triggers the refresh-folders event that updates the foldersList view after idb has been updated.
+ */
+function triggerRefreshFoldersEvent () {
+  let foldersListEl = document.querySelector('.m-folders-list')
+  if (foldersListEl) {
+    let refreshEvent = new Event('refresh-folders')
+    foldersListEl.dispatchEvent(refreshEvent)
+  }
+}
+
+/**
+ * Triggers the refresh-tags event that updates the tagsList view after idb has been updated.
+ */
+function triggerRefreshTagsEvent () {
+  let tagsListEl = document.querySelector('.m-folders-list--tags')
+  if (tagsListEl) {
+    let refreshEvent = new Event('refresh-tags')
+    tagsListEl.dispatchEvent(refreshEvent)
+  }
+}
+
 // Vue components
+
+Vue.component('push-prompt', {
+  props: [
+    'showPushPrompt'
+  ],
+  template: `
+  <div id="enable-push-prompt" class="m-push-prompt"
+      v-if="showPushPrompt" v-on:refresh="refreshPushPrompt">
+    <div class="m-push-prompt__content">
+      <img src="/static/wicons/push-notifications1.png"/>
+      <p>
+        This app relies on push notifications to keep your notes up-to-date on this device.
+      </p>
+      <button id="enable-push-notifications"
+        v-on:click="enablePushNotifications">Enable Push Notifications</button>
+    </div>
+  </div>
+  `,
+  methods: {
+    enablePushNotifications () {
+      let ev = new Event(NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION)
+      document.dispatchEvent(ev)
+    },
+    refreshPushPrompt () {
+      this.showPushPrompt = window.Notification ? (Notification.permission === 'default') : false
+    }
+  }
+})
 
 Vue.component('update-notification', {
   props: [
@@ -69,6 +318,39 @@ Vue.component('update-notification', {
     update () {
       newWorker.postMessage({action: 'skipWaiting'})
       this.updateAvailable = false
+    }
+  }
+})
+
+Vue.component('folders-list', {
+  props: [
+    'foldersList',
+    'selectedFolder'
+  ],
+  template: `
+  <ul class="m-folders-list" v-if="notEmptyFoldersList">
+    <folder-item
+        v-for="folder in foldersList"
+        v-bind:folder="folder"
+        v-bind:selected-folder="selectedFolder"
+        v-bind:key="folder.id"
+        v-on:slide-to-mobile-panel="slideToMobilePanel">
+    </folder-item>
+  </ul>
+  <ul class="m-folders-list" v-else>
+    <li class="m-folders-list__item is-disabled">
+      <span class="m-folders-list__link">No folders</span>
+    </li>
+  </ul>
+  `,
+  computed: {
+    notEmptyFoldersList: function () {
+      return Boolean(this.foldersList.length)
+    }
+  },
+  methods: {
+    slideToMobilePanel (area) {
+      this.$emit('slide-to-mobile-panel', area)
     }
   }
 })
@@ -104,6 +386,39 @@ Vue.component('folder-item', {
         this.$emit('slide-to-mobile-panel', 'notes-list')
         return false
       }
+    }
+  }
+})
+
+Vue.component('tags-list', {
+  props: [
+    'tagsList',
+    'selectedTag'
+  ],
+  template: `
+  <ul class="m-folders-list m-folders-list--tags" v-if="notEmptyTagsList">
+    <tags-folder-item
+        v-for="tag in tagsList"
+        v-bind:tag="tag"
+        v-bind:selected-tag="selectedTag"
+        v-bind:key="tag.id"
+        v-on:slide-to-mobile-panel="slideToMobilePanel">
+    </tags-folder-item>
+  </ul>
+  <ul class="m-folders-list m-folders-list--tags" v-else>
+    <li class="m-folders-list__item is-disabled">
+      <span class="m-folders-list__link">No tags</span>
+    </li>
+  </ul>
+  `,
+  computed: {
+    notEmptyTagsList: function () {
+      return Boolean(this.tagsList.length)
+    }
+  },
+  methods: {
+    slideToMobilePanel (area) {
+      this.$emit('slide-to-mobile-panel', area)
     }
   }
 })
@@ -259,6 +574,7 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
   data: {
     updateAvailable: false,
     updateNotificationDismissed: false,
+    showPushPrompt: window.Notification ? (Notification.permission === 'default') : false,
     dbPopulated: false,
     foldersList: [],
     tagsList: [],
@@ -269,12 +585,6 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     selectedNote: false
   },
   computed: {
-    notEmptyFoldersList: function () {
-      return Boolean(this.foldersList.length)
-    },
-    notEmptyTagsList: function () {
-      return Boolean(this.tagsList.length)
-    }
   },
   methods: {
     startSpinner () {
@@ -282,6 +592,9 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
     },
     stopSpinner () {
       // TODO: stop spinner
+    },
+    refreshPushPrompt () {
+      this.showPushPrompt = window.Notification ? (Notification.permission === 'default') : false
     },
     populateDatabase (resource) {
       if (this.dbPopulated) {
