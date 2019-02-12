@@ -2141,9 +2141,19 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
 
         case 'tag:updated':
           // very likely to be rename
-          // get old tag handle using the folder id. If found, update tags, then delete notesWithTags (for old tag)
-          // add new tag
-          // fetch notesWithTags for new tag
+          tag = ev.data.tagData; // get old tag handle using the tag id
+
+          notesDb.getTagById(tag.id).then(function (oldTag) {
+            // update tag
+            notesDb.addTag(tag).then(function (result) {
+              console.log('Updated tag');
+              triggerRefreshTagsEvent();
+            }); // delete old notesWithTags
+
+            notesDb.deleteAllNotesWithTag(oldTag.handle).then(function (result) {
+              console.log('Deleted old notesWithTag record');
+            });
+          });
           break;
 
         case 'tag:deleted':
@@ -2807,7 +2817,7 @@ function () {
   }, {
     key: "addTag",
     value: function addTag(tag) {
-      this.dbPromise.then(function (db) {
+      return this.dbPromise.then(function (db) {
         var tx = db.transaction('tags', 'readwrite');
         var tagStore = tx.objectStore('tags');
         tagStore.put(tag);
@@ -3324,4 +3334,48 @@ function () {
 
 var _default = NotesSync;
 exports.default = _default;
-},{"./NotesDB":30,"axios":1}]},{},[29,30,31,32]);
+},{"./NotesDB":30,"axios":1}],33:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var SWMessages =
+/*#__PURE__*/
+function () {
+  function SWMessages() {
+    _classCallCheck(this, SWMessages);
+  }
+
+  _createClass(SWMessages, null, [{
+    key: "pageReload",
+    // eslint-disable-line no-unused-vars
+    get: function get() {
+      return 'page:reload';
+    }
+  }, {
+    key: "noteCreated",
+    get: function get() {
+      return 'note:created';
+    }
+  }, {
+    key: "noteUpdated",
+    get: function get() {
+      return 'note:updated';
+    }
+  }]);
+
+  return SWMessages;
+}();
+
+var _default = SWMessages;
+exports.default = _default;
+},{}]},{},[29,30,31,32,33]);

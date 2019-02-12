@@ -41,7 +41,28 @@ class FolderAdmin(admin.ModelAdmin):
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    pass
+
+    def save_model(self,
+                   request: HttpRequest,
+                   tag: Tag,
+                   form: ModelForm,
+                   change: bool):
+        """overriding to implement push notifications after saving
+        """
+
+        super().save_model(request, tag, form, change)
+
+        if not change:
+            # tag:created handled by post_save signal
+            return
+        # endif
+
+        if change and not form.changed_data:
+            # no fields were modified
+            return
+        # endif
+
+        signals.tag_updated.send(sender=tag.__class__, instance=tag)
 
 
 @admin.register(Note)

@@ -6,8 +6,8 @@ from django.dispatch import receiver
 
 from notes.models import Folder, Note, Tag
 from notes.notifications import PushNotification
-from notes.serializers import FolderSerializer, NoteSerializer
-from notes.signals.signals import folder_updated, note_updated
+from notes.serializers import FolderSerializer, TagSerializer, NoteSerializer
+from notes.signals.signals import folder_updated, tag_updated, note_updated
 from webpush import send_group_notification
 
 
@@ -150,6 +150,25 @@ def note_deleted_handler(sender, **kwargs):
         'url': '/#%s' % (serialized_note.get('url')),
         'type': 'note:deleted',
         'noteData': serialized_note
+    }
+
+    PushNotification().send_to_default_group(payload)
+
+
+@receiver(tag_updated, sender=Tag)
+def tag_updated_handler(sender, **kwargs):
+    """handles the tag_updated signal
+    """
+
+    tag: Tag = kwargs.get('instance')
+    serialized_tag = TagSerializer().serialize(tag)
+
+    payload = {
+        'head': 'Tag updated',
+        'body': tag.handle,
+        'url': serialized_tag.get('url'),
+        'type': 'tag:updated',
+        'tagData': serialized_tag,
     }
 
     PushNotification().send_to_default_group(payload)

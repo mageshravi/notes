@@ -36,7 +36,7 @@ class NotesDB { // eslint-disable-line no-unused-vars
   }
 
   addTag (tag) {
-    this.dbPromise.then(db => {
+    return this.dbPromise.then(db => {
       var tx = db.transaction('tags', 'readwrite')
       var tagStore = tx.objectStore('tags')
       tagStore.put(tag)
