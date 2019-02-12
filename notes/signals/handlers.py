@@ -166,7 +166,7 @@ def tag_updated_handler(sender, **kwargs):
     payload = {
         'head': 'Tag updated',
         'body': tag.handle,
-        'url': serialized_tag.get('url'),
+        'url': '/#%s' % (serialized_tag.get('url')),
         'type': 'tag:updated',
         'tagData': serialized_tag,
     }
