@@ -226,8 +226,12 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
           break
 
         case 'tag:created':
-          // add to tags
-          // fetch notesWithTags
+          tag = ev.data.tagData
+          notesDb.addTag(tag)
+            .then(result => {
+              console.log('Tag created')
+              triggerRefreshTagsEvent()
+            })
           break
 
         case 'tag:updated':

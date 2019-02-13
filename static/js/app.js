@@ -2148,8 +2148,11 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
           break;
 
         case 'tag:created':
-          // add to tags
-          // fetch notesWithTags
+          tag = ev.data.tagData;
+          notesDb.addTag(tag).then(function (result) {
+            console.log('Tag created');
+            triggerRefreshTagsEvent();
+          });
           break;
 
         case 'tag:updated':
@@ -2822,7 +2825,7 @@ function () {
   }, {
     key: "addTag",
     value: function addTag(tag) {
-      this.dbPromise.then(function (db) {
+      return this.dbPromise.then(function (db) {
         var tx = db.transaction('tags', 'readwrite');
         var tagStore = tx.objectStore('tags');
         tagStore.put(tag);
