@@ -189,9 +189,26 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
 
         case 'folder:updated':
           // very likely to be rename
-          // get old folder name from idb using the folder id. If found, update folder, then delete notesInFolder (for old folder).
-          // add new folder
-          // fetch notesInFolder for new folder
+          folder = ev.data.folderData
+          // get old folder name from idb using the folder id
+          notesDb.getFolderById(folder.id)
+            .then(oldFolder => {
+              // update folder
+              notesDb.addFolder(folder)
+                .then(result => {
+                  console.log('Folder updated')
+                  // get new notesInFolder
+                  notesSync.syncFolder(folder.id)
+                    .then(result => {
+                      triggerRefreshFoldersEvent()
+                    })
+                })
+              // delete notesInFolder (for old folder)
+              notesDb.deleteAllNotesInFolder(oldFolder.name)
+                .then(result => {
+                  console.log('Deleted from notesInFolder')
+                })
+            })
           break
 
         case 'folder:deleted':
@@ -788,6 +805,8 @@ var notesApp = new Vue({  // eslint-disable-line no-unused-vars
       }
     },
     init () {
+      this.refreshPushPrompt()
+
       if (!this.dbPopulated) {
         this.populateDatabase()
       }
