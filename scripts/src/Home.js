@@ -236,9 +236,23 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
 
         case 'tag:updated':
           // very likely to be rename
-          // get old tag handle using the folder id. If found, update tags, then delete notesWithTags (for old tag)
-          // add new tag
-          // fetch notesWithTags for new tag
+          tag = ev.data.tagData
+          // get old tag handle using the tag id
+          notesDb.getTagById(tag.id)
+            .then(oldTag => {
+              // update tag
+              notesDb.addTag(tag)
+                .then(result => {
+                  console.log('Updated tag')
+                  triggerRefreshTagsEvent()
+                })
+
+              // delete old notesWithTags
+              notesDb.deleteAllNotesWithTag(oldTag.handle)
+                .then(result => {
+                  console.log('Deleted old notesWithTag record')
+                })
+            })
           break
 
         case 'tag:deleted':
