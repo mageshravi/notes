@@ -2177,6 +2177,7 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
           tag = ev.data.tagData;
           notesDb.deleteTag(tag.id).then(function (result) {
             console.log('Deleted from tags');
+            triggerRefreshTagsEvent();
           });
           notesDb.deleteAllNotesWithTag(tag.handle).then(function (result) {
             console.log('Deleted from notesWithTags');

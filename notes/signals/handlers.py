@@ -200,3 +200,22 @@ def tag_updated_handler(sender, **kwargs):
     }
 
     PushNotification().send_to_default_group(payload)
+
+
+@receiver(post_delete, sender=Tag)
+def tag_deleted_handler(sender, **kwargs):
+    """handles the post_delete signal for tag
+    """
+
+    tag: Tag = kwargs.get('instance')
+    serialized_tag = TagSerializer().serialize(tag)
+
+    payload = {
+        'head': 'Tag deleted',
+        'body': tag.handle,
+        'url': '/#%s' % serialized_tag.get('url'),
+        'type': 'tag:deleted',
+        'tagData': serialized_tag,
+    }
+
+    PushNotification().send_to_default_group(payload)
