@@ -261,6 +261,7 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
           notesDb.deleteTag(tag.id)
             .then(result => {
               console.log('Deleted from tags')
+              triggerRefreshTagsEvent()
             })
           notesDb.deleteAllNotesWithTag(tag.handle)
             .then(result => {
