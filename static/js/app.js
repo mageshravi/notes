@@ -2117,9 +2117,22 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
 
         case 'folder:updated':
           // very likely to be rename
-          // get old folder name from idb using the folder id. If found, update folder, then delete notesInFolder (for old folder).
-          // add new folder
-          // fetch notesInFolder for new folder
+          folder = ev.data.folderData; // get old folder name from idb using the folder id
+
+          notesDb.getFolderById(folder.id).then(function (oldFolder) {
+            // update folder
+            notesDb.addFolder(folder).then(function (result) {
+              console.log('Folder updated'); // get new notesInFolder
+
+              notesSync.syncFolder(folder.id).then(function (result) {
+                triggerRefreshFoldersEvent();
+              });
+            }); // delete notesInFolder (for old folder)
+
+            notesDb.deleteAllNotesInFolder(oldFolder.name).then(function (result) {
+              console.log('Deleted from notesInFolder');
+            });
+          });
           break;
 
         case 'folder:deleted':
@@ -2135,8 +2148,11 @@ window.isUpdateAvailable = new Promise(function (resolve, reject) {
           break;
 
         case 'tag:created':
-          // add to tags
-          // fetch notesWithTags
+          tag = ev.data.tagData;
+          notesDb.addTag(tag).then(function (result) {
+            console.log('Tag created');
+            triggerRefreshTagsEvent();
+          });
           break;
 
         case 'tag:updated':
@@ -2573,6 +2589,8 @@ var notesApp = new Vue({
     },
     init: function init() {
       var _this7 = this;
+
+      this.refreshPushPrompt();
 
       if (!this.dbPopulated) {
         this.populateDatabase();

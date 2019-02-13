@@ -155,6 +155,34 @@ def note_deleted_handler(sender, **kwargs):
     PushNotification().send_to_default_group(payload)
 
 
+@receiver(post_save, sender=Tag)
+def tag_created_handler(sender, **kwargs):
+    """handles the build-in post_save signal for Tag.
+    Used for tag:created scenario.
+    Not useful for tag:updated as there is no reliable way to detect changes
+
+    Arguments:
+        sender {django.db.models.Model} -- The object dispatching the signal
+    """
+
+    if not kwargs.get('created'):
+        return
+    # endif
+
+    tag: Tag = kwargs.get('instance')
+    serialized_tag = TagSerializer().serialize(tag)
+
+    payload = {
+        'head': 'New tag',
+        'body': tag.handle,
+        'url': '/#%s' % serialized_tag.get('url'),
+        'type': 'tag:created',
+        'tagData': serialized_tag,
+    }
+
+    PushNotification().send_to_default_group(payload)
+
+
 @receiver(tag_updated, sender=Tag)
 def tag_updated_handler(sender, **kwargs):
     """handles the tag_updated signal
