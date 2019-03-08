@@ -114,7 +114,7 @@ class NotesPushManager {
         },
         credentials: 'include'
       }
-    ).then(response => {
+    ).then(() => {
       // handle response
       console.log('Push notification subscription saved successfully')
 

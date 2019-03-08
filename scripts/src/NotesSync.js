@@ -8,7 +8,7 @@ class NotesSync {   // eslint-disable-line no-unused-vars
     return notesDb.getFolderById(folderId)
       .then(folder => {
         // check if folder exists in idb
-        let promise = new Promise((resolve, reject) => {
+        let promise = new Promise((resolve) => {
           if (folder) {
             // folder exists
             resolve({
@@ -75,7 +75,7 @@ class NotesSync {   // eslint-disable-line no-unused-vars
     return notesDb.getTagById(tagId)
       .then(tag => {
         // check if tag exists in idb
-        let promise = new Promise((resolve, reject) => {
+        let promise = new Promise((resolve) => {
           if (tag) {
             // tag exists
             resolve({
