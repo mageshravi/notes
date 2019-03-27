@@ -5,8 +5,7 @@ var filesToCache = [
   '/static/css/style_above_fold.css',
   '/static/css/style.css',
   '/static/css/lib.css',
-  '/static/js/lib.js',
-  '/static/js/app.min.js',
+  '/static/js/index.js',
   '/static/ckeditor/ckeditor/plugins/codesnippet/lib/highlight/styles/obsidian.css',
   '/static/ckeditor/ckeditor/plugins/codesnippet/lib/highlight/highlight.pack.js',
   '/static/fonts/inter-ui/inter-ui.css',
@@ -27,7 +26,7 @@ var filesToCache = [
 ]
 
 var filesToRefresh = [
-  '/static/js/app.min.js',
+  '/static/js/index.js',
 ]
 
 self.addEventListener('install', function (ev) {
