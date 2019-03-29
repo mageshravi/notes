@@ -8,15 +8,27 @@ import NotesDB from './NotesDB'
 
 Vue.config.productionTip = false
 
-let notesApp = new Vue({
-  el: '#notes-app',
-  template: '<App/>',
-  components: { App }
-})
-
 let newWorker
 
-window.isUpdateAvailable = new Promise((resolve, reject) => {
+let notesApp = new Vue({
+  el: '#notes-app',
+  data: {
+    updateAvailable: false
+  },
+  template: '<App \
+    v-bind:update-available="updateAvailable"\
+    v-on:ready-to-update="updateApp"\
+    />',
+  components: { App },
+  methods: {
+    updateApp: function () {
+      newWorker.postMessage({ action: "skipWaiting" });
+      this.updateAvailable = false;
+    }
+  }
+})
+
+let isUpdateAvailable = new Promise((resolve, reject) => {
   if ('serviceWorker' in navigator) {
     let regPromise = navigator.serviceWorker.register('/sw.js')
 
@@ -275,6 +287,8 @@ window.isUpdateAvailable = new Promise((resolve, reject) => {
           break
       }
     })
+  } else {
+    reject('Browser does not support service-workers')
   }
 })
 
@@ -300,9 +314,9 @@ function triggerRefreshTagsEvent () {
   }
 }
 
-window['isUpdateAvailable']
+isUpdateAvailable
   .then(isAvailable => {
     if (isAvailable) {
-      notesApp.updateAvailable = true
+      notesApp.$data.updateAvailable = true
     }
   })

@@ -3,7 +3,6 @@
     id="enable-push-prompt"
     class="m-push-prompt"
     v-if="showPushPrompt"
-    v-on:refresh="refreshPushPrompt"
   >
     <div class="m-push-prompt__content">
       <img src="/static/wicons/push-notifications1.png">
@@ -27,11 +26,6 @@ export default {
     enablePushNotifications() {
       let ev = new Event(NotesPushManager.EVENTS.ENABLE_PUSH_NOTIFICATION);
       document.dispatchEvent(ev);
-    },
-    refreshPushPrompt() {
-      this.showPushPrompt = window.Notification
-        ? Notification.permission === "default"
-        : false;
     }
   }
 };

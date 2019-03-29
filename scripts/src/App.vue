@@ -2,10 +2,13 @@
   <div id="notes-app">
     <update-notification
       v-bind:update-available="updateAvailable"
-      v-bind:dismissed="updateNotificationDismissed"
+      v-on:ready-to-update="emitReadyToUpdate"
     ></update-notification>
 
-    <push-prompt v-bind:show-push-prompt="showPushPrompt"></push-prompt>
+    <push-prompt 
+      v-bind:show-push-prompt="showPushPrompt"
+      v-on:refresh.native="refreshPushPrompt"
+    ></push-prompt>
 
     <div class="l-wrapper">
       <div class="l-folders m-folders">
@@ -84,6 +87,9 @@ import NotesItem from "./components/NotesItem.vue";
 import NoteDetail from "./components/NoteDetail.vue";
 
 export default {
+  props: [
+    "updateAvailable"
+  ],
   components: {
     PushPrompt,
     UpdateNotification,
@@ -94,8 +100,6 @@ export default {
   },
   data: function() {
     return {
-      updateAvailable: false,
-      updateNotificationDismissed: false,
       showPushPrompt: window.Notification
         ? Notification.permission === "default"
         : false,
@@ -469,6 +473,9 @@ export default {
     _notesInFolderSuccessHandler(notesList) {
       this.notesList = notesList;
       this.slideToMobilePanel("note-detail");
+    },
+    emitReadyToUpdate() {
+      this.$emit('ready-to-update');
     }
   },
   mounted() {

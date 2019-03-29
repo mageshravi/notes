@@ -13,12 +13,15 @@
 </template>
 
 <script>
-/* global newWorker */
 export default {
   props: [
-    'updateAvailable',
-    'dismissed'
+    'updateAvailable'
   ],
+  data: function () {
+    return {
+      dismissed: false
+    }
+  },
   computed: {
     isVisible: function() {
       return this.updateAvailable && !this.dismissed;
@@ -26,11 +29,10 @@ export default {
   },
   methods: {
     dismiss() {
-      this.dismissed = true;
+      this.$data.dismissed = true;
     },
     update() {
-      newWorker.postMessage({ action: "skipWaiting" });
-      this.updateAvailable = false;
+      this.$emit('ready-to-update');
     }
   }
 };
