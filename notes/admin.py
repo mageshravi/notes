@@ -68,6 +68,17 @@ class TagAdmin(admin.ModelAdmin):
 @admin.register(Note)
 class NoteAdmin(admin.ModelAdmin):
 
+    list_display = ('title', 'folder_name', 'tags_csv', 'created_at')
+    list_filter = ('folder', 'created_at')
+
+    def folder_name(self, note):
+        return note.folder.name
+    folder_name.short_description = 'folder'
+
+    def tags_csv (self, note):
+        return ', '.join([note.handle for note in note.tags.all()])
+    tags_csv.short_description = 'tags'
+
     def save_model(self,
                    request: HttpRequest,
                    note: Note,
