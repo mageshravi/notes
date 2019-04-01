@@ -55,4 +55,24 @@ export default {
   }
 };
 </script>
+<style lang="scss">
+.m-note-detail {
+  $class-name: m-note-detail;
+  padding: 12px 25px;
+
+  &__notes-list-link {
+    text-decoration: none;
+  }
+
+  code {
+    border-radius: 4px;
+  }
+
+  @media (min-width: 768px) {
+    .#{$class-name}__notes-list-link {
+      display: none;
+    }
+  }
+}
+</style>
 

@@ -49,4 +49,55 @@ export default {
   }
 }
 </script>
+<style lang="scss">
+@import './scss/_theme.scss';
 
+.m-notes-list {
+  &__item {
+    border-bottom: 1px solid $note-border-color;
+
+    &:first-child {
+      border-top: 1px solid $note-border-color;
+    }
+  }
+}
+
+.m-note {
+  $class-name: m-note;
+  padding: 12px 25px;
+  cursor: pointer;
+
+  &__title {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    font-size: 1em;
+    letter-spacing: -0.004em;
+    line-height: 1.2;
+  }
+
+  &__updated {
+    margin-top: 0.7em;
+    margin-bottom: 0;
+    font-size: 0.87em;
+    letter-spacing: 0.001em;
+    color: $note-updated-txt-color;
+  }
+
+  &:hover {
+    background-color: transparentize($color: $note-active-bg-color, $amount: 0.75);
+  }
+
+  &.is-active {
+    color: $note-active-txt-color;
+    background-color: $note-active-bg-color;
+
+    .#{$class-name}__title {
+      font-weight: bold;
+    }
+
+    .#{$class-name}__updated {
+      color: $note-active-updated-txt-color;
+    }
+  }
+}
+</style>

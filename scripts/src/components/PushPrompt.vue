@@ -30,3 +30,30 @@ export default {
   }
 };
 </script>
+
+<style lang="scss">
+@import './scss/_theme.scss';
+@import './scss/_vars.scss';
+
+.m-push-prompt {
+    background-color: $push-prompt-bg-color;
+
+    display: flex;
+    flex-flow: column;
+    justify-content: center;
+    align-items: center;
+
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: $z-index-push-prompt;
+
+    &__content {
+        margin: 0 auto;
+        max-width: 290px;
+        text-align: center;
+    }
+}
+</style>

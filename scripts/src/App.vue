@@ -52,16 +52,11 @@
           <h2 class="m-notes__title">#{{ selectedTag }}</h2>
         </div>
 
-        <ul class="m-notes-list">
-          <notes-item
-            v-for="note in notesList"
-            v-bind:note="note"
-            v-bind:selected-note="selectedNote"
-            v-bind:key="note.id"
-            v-on:note-change="noteChangeHandler"
-            v-on:slide-to-mobile-panel="slideToMobilePanel"
-          ></notes-item>
-        </ul>
+        <notes-list
+          v-bind:notesList="notesList"
+          v-bind:selectedNote="selectedNote"
+          v-on:slide-to-mobile-panel="slideToMobilePanel">
+        </notes-list>
       </div>
 
       <div class="l-note-detail">
@@ -83,7 +78,7 @@ import PushPrompt from "./components/PushPrompt.vue";
 import UpdateNotification from "./components/UpdateNotification.vue";
 import FoldersList from "./components/FoldersList.vue";
 import TagsList from "./components/TagsList.vue";
-import NotesItem from "./components/NotesItem.vue";
+import NotesList from "./components/NotesList.vue";
 import NoteDetail from "./components/NoteDetail.vue";
 
 export default {
@@ -95,7 +90,7 @@ export default {
     UpdateNotification,
     FoldersList,
     TagsList,
-    NotesItem,
+    NotesList,
     NoteDetail
   },
   data: function() {
@@ -291,7 +286,7 @@ export default {
       });
     },
     slideToFoldersListInMobileView(ev) {
-      ev.preventDefaul();
+      ev.preventDefault();
       this.slideToMobilePanel("folders-list");
       return false;
     },
@@ -488,3 +483,51 @@ export default {
   }
 };
 </script>
+<style lang="scss">
+@import './scss/_theme.scss';
+
+.m-folders {
+  &__title {
+    padding: 0 25px;
+    color: $folders-list-txt-color;
+  }
+}
+
+.m-notes {
+  $class-name: m-notes;
+  border-right: 1px solid lightgray;
+  display: flex;
+  flex-flow: column;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.2);
+
+  &__header {
+    margin-top: 12px;
+    border-bottom: 1px solid $note-border-color;
+    position: sticky;
+    top: 0;
+  }
+
+  &__folders-list-link {
+    padding: 0 25px;
+    text-decoration: none;
+  }
+
+  &__title {
+    padding: 0 25px;
+  }
+
+  @media (min-width: 768px) {
+    .#{$class-name}__folders-list-link {
+      display: none;
+    }
+  }
+}
+
+.m-notes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+</style>
