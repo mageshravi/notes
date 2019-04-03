@@ -47,7 +47,7 @@ cp -r font-awesome/fonts/* ${FONTS_DIR}/
 echo " |- Normalize.css"
 cp normalize.css/normalize.css ${LIB_DIR}/
 
-echo " |- Vue.js"
-cp vue/dist/vue.min.js ${LIB_DIR}/
+# echo " |- Vue.js"
+# cp vue/dist/vue.min.js ${LIB_DIR}/
 
 source ${BASE_DIR}/bash/npm-bundle_lib.sh

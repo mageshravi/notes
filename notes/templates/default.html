@@ -5,83 +5,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta name="apple-mobile-web-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="vapid-key" content="{{ vapid_key }}">
     <title>Notes</title>
     <link rel="stylesheet" href="{% static 'css/style_above_fold.css' %}">
     <link rel="apple-touch-icon" sizes="152x152" href="{% static 'wicons/notes/152x152.png' %}">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'wicons/notes/iphone-retina.png' %}">
     <link rel="apple-touch-icon" sizes="167x167" href="{% static 'wicons/notes/ipad-retina.png' %}">
+    <link href="{% static 'images/splash-screen/apple_splash_2048.png' %}" sizes="2048x2732" rel="apple-touch-startup-image"/>
+    <link href="{% static 'images/splash-screen/apple_splash_1668.png' %}" sizes="1668x2224" rel="apple-touch-startup-image"/>
+    <link href="{% static 'images/splash-screen/apple_splash_1536.png' %}" sizes="1536x2048" rel="apple-touch-startup-image"/>
+    <link href="{% static 'images/splash-screen/apple_splash_1125.png' %}" sizes="1125x2436" rel="apple-touch-startup-image"/>
+    <link href="{% static 'images/splash-screen/apple_splash_1242.png' %}" sizes="1242x2208" rel="apple-touch-startup-image"/>
+    <link href="{% static 'images/splash-screen/apple_splash_750.png' %}" sizes="750x1334" rel="apple-touch-startup-image"/>
+    <link href="{% static 'images/splash-screen/apple_splash_640.png' %}" sizes="640x1136" rel="apple-touch-startup-image"/>
     <link rel="manifest" href="{% static 'manifest.json' %}">
 </head>
 <body>
-    <div id="notes-app" v-cloak>
-        <update-notification
-            v-bind:update-available="updateAvailable"
-            v-bind:dismissed="updateNotificationDismissed">
-        </update-notification>
-        <push-prompt v-bind:show-push-prompt="showPushPrompt"></push-prompt>
-        <div class="l-wrapper">
-            <div class="l-folders m-folders">
-                <h2 class="m-folders__title">Folders</h2>
-                <folders-list
-                    v-bind:folders-list="foldersList"
-                    v-bind:selected-folder="selectedFolder"
-                    v-on:slide-to-mobile-panel="slideToMobilePanel"
-                    v-on:refresh-folders.native="refreshFolders">
-                </folders-list>
+    <div id="notes-app" v-cloak></div>
 
-                <h2 class="m-folders__title">Tags</h2>
-                <tags-list
-                    v-bind:tags-list="tagsList"
-                    v-bind:selected-tag="selectedTag"
-                    v-on:slide-to-mobile-panel="slideToMobilePanel"
-                    v-on:refresh-tags.native="refreshTags">
-                </tags-list>
-            </div>
-            <div class="l-notes m-notes">
-                {% verbatim %}
-                <div class="m-notes__header"
-                    v-if="selectedFolder">
-                    <a class="m-notes__folders-list-link"
-                    v-bind:href="'#/folders/' + selectedFolder"
-                    v-on:click="slideToFoldersListInMobileView"><i class="fa fa-angle-left"></i> Folders</a>
-                    <h2 class="m-notes__title">{{ selectedFolder }}</h2>
-                </div>
-
-                <div class="m-notes__header"
-                    v-if="selectedTag">
-                    <a class="m-notes__folders-list-link"
-                    v-bind:href="'#/tags/' + selectedTag"
-                    v-on:click="slideToFoldersListInMobileView"><i class="fa fa-angle-left"></i> Tags</a>
-                    <h2 class="m-notes__title">#{{ selectedTag }}</h2>
-                </div>
-                {% endverbatim %}
-                <ul class="m-notes-list">
-                    <notes-item
-                        v-for="note in notesList"
-                        v-bind:note="note"
-                        v-bind:selected-note="selectedNote"
-                        v-bind:key="note.id"
-                        v-on:note-change="noteChangeHandler"
-                        v-on:slide-to-mobile-panel="slideToMobilePanel">
-                    </notes-item>
-                </ul>
-            </div>
-            <div class="l-note-detail">
-                <note-detail
-                    v-bind:note="noteDetail"
-                    v-bind:selected-tag="selectedTag"
-                    v-on:slide-to-mobile-panel="slideToMobilePanel">
-                </note-detail>
-            </div>
-        </div>
-    </div>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/lib.css' %}">
 
-    <script src="{% static 'js/lib.js' %}"></script>
-    <script src="{% static 'js/app.min.js' %}"></script>
+    <script src="{% static 'js/index.js' %}"></script>
 
     <link rel="stylesheet" href="{% static 'ckeditor/ckeditor/plugins/codesnippet/lib/highlight/styles/obsidian.css' %}">
     <script src="{% static 'ckeditor/ckeditor/plugins/codesnippet/lib/highlight/highlight.pack.js' %}"></script>

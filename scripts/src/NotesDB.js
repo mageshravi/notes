@@ -1,8 +1,8 @@
 import idb from 'idb'
 
 class NotesDB { // eslint-disable-line no-unused-vars
-  constructor () {
-    this.dbPromise = idb.open('notesDB', 1, upgradeDB => { // eslint-disable-line no-unused-vars
+  constructor (databaseName = 'notesDB') {
+    this.dbPromise = idb.open(databaseName, 1, upgradeDB => { // eslint-disable-line no-unused-vars
       switch (upgradeDB.oldVersion) {
         case 0:
           upgradeDB.createObjectStore('folders', {keyPath: 'id'})

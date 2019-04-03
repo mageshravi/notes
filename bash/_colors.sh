@@ -136,12 +136,12 @@ function print_key_value() {
     key="${3}"
     value="${4}"
 
-    echo -e "${color}${BOLD}${tag}${color} ${key}: ${BOLD}${value}${NC}"
+    echo -e "${color}${BOLD}${tag}${color} ${key}: ${BOLD}${value}${txtrst}"
 }
 
 function print_value() {
     color="${1}"
     tag=`printf "%9s" "[${2}]"`
     value="${3}"
-    echo -e "${color}${BOLD}${tag}${color} ${value}${NC}"
+    echo -e "${color}${BOLD}${tag}${color} ${value}${txtrst}"
 }
