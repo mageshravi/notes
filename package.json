@@ -12,7 +12,7 @@
     "watch:css": "onchange 'scss/*.scss' -- npm run build:css",
     "scss:dev": "onerror 'node-sass -o static/css/ scss/' --title 'Error compiling SCSS' --icon error",
     "build:css:dev": "npm run scss:dev && npm run autoprefixer",
-    "build:webpack:dev": "webpack --mode development",
+    "build:webpack:dev": "webpack --mode development --watch",
     "watch:css:dev": "onchange 'scss/*.scss' -- npm run build:css:dev && npm run kss",
     "kss": "kss --config kss-config.json",
     "test": "echo \"Error: no test specified\" && exit 1"

@@ -53,6 +53,5 @@ module.exports = {
     },
     plugins: [
         new VueLoaderPlugin()
-    ],
-    watch: true
+    ]
 }
