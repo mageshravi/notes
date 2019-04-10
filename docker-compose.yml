@@ -18,6 +18,7 @@ services:
       - notes-db
     env_file:
       - notes-web.env
+      - notes-web.private.env
     volumes:
       - .:/code
     ports:
