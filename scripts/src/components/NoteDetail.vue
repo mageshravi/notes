@@ -11,13 +11,23 @@
     </a>
     <a
       class="m-note-detail__notes-list-link"
+      v-else-if="selectedFolder"
+      v-bind:href="route"
+      v-on:click="slideToNotesListInMobileView"
+    >
+      <i class="fa fa-angle-left" aria-hidden="true"></i>
+      {{ selectedFolder }}
+    </a>
+    <a
+      class="m-note-detail__notes-list-link"
       v-else
       v-bind:href="route"
       v-on:click="slideToNotesListInMobileView"
     >
       <i class="fa fa-angle-left" aria-hidden="true"></i>
-      {{ note.folder.name }}
+      Search results
     </a>
+
     <h1>{{ note.title }}</h1>
     <ul class="m-tags-list">
       <note-tag v-for="tag in note.tags" v-bind:tag="tag" v-bind:key="tag.id"></note-tag>
@@ -31,7 +41,7 @@
 import NoteTag from "./NoteTag.vue";
 
 export default {
-  props: ["note", "selectedTag"],
+  props: ["note", "selectedFolder", "selectedTag"],
   components: {
       NoteTag
   },

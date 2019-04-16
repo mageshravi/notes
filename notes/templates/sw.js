@@ -1,4 +1,4 @@
-var staticCacheName = 'notes-static-v1.3.5';    // this is the cache version. do not confuse with the app version
+var staticCacheName = 'notes-static-v1.3.6';    // this is the cache version. do not confuse with the app version
 
 var filesToCache = [
   '/',

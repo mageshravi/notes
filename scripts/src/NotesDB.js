@@ -191,6 +191,30 @@ class NotesDB { // eslint-disable-line no-unused-vars
       return tx.complete
     })
   }
+
+  searchNotes (query) {
+    return new Promise((resolve) => {
+      let queryPattern = new RegExp(`\\b${query}`, 'i')
+      let results = []
+      this.getAllFolders().then(foldersList => {
+        foldersList.forEach((folder, idx, array) => {
+          this.getNotesInFolder(folder.name).then(notesList => {
+            notesList.forEach(note => {
+              console.log()
+              if (queryPattern.test(note.title)) {
+                note.url += `?query=${query}`
+                results.push(note)
+              }
+            })
+          })
+
+          if (idx === array.length - 1) {
+            resolve(results)
+          }
+        })
+      })
+    })
+  }
 }
 
 export default NotesDB

@@ -30,26 +30,31 @@
       </div>
 
       <div class="l-notes m-notes">
-        <div class="m-notes__header" v-if="selectedFolder">
+        <div class="m-notes__header">
           <a
             class="m-notes__folders-list-link"
             v-bind:href="'#/folders/' + selectedFolder"
             v-on:click="slideToFoldersListInMobileView"
+            v-if="selectedFolder || searchQuery"
           >
             <i class="fa fa-angle-left"></i> Folders
           </a>
-          <h2 class="m-notes__title">{{ selectedFolder }}</h2>
-        </div>
-
-        <div class="m-notes__header" v-if="selectedTag">
           <a
             class="m-notes__folders-list-link"
             v-bind:href="'#/tags/' + selectedTag"
             v-on:click="slideToFoldersListInMobileView"
+            v-else-if="selectedTag"
           >
             <i class="fa fa-angle-left"></i> Tags
           </a>
-          <h2 class="m-notes__title">#{{ selectedTag }}</h2>
+
+          <SearchBar
+            v-bind:search-query="searchQuery"
+            v-on:search="search"/>
+
+          <h2 class="m-notes__title" v-if="searchQuery">Search results</h2>
+          <h2 class="m-notes__title" v-else-if="selectedFolder">{{ selectedFolder }}</h2>
+          <h2 class="m-notes__title" v-else-if="selectedTag">#{{ selectedTag }}</h2>
         </div>
 
         <notes-list
@@ -63,6 +68,7 @@
         <note-detail
           v-bind:note="noteDetail"
           v-bind:selected-tag="selectedTag"
+          v-bind:selected-folder="selectedFolder"
           v-on:slide-to-mobile-panel="slideToMobilePanel"
         ></note-detail>
       </div>
@@ -80,6 +86,7 @@ import FoldersList from "./components/FoldersList.vue";
 import TagsList from "./components/TagsList.vue";
 import NotesList from "./components/NotesList.vue";
 import NoteDetail from "./components/NoteDetail.vue";
+import SearchBar from "./components/SearchBar.vue";
 
 export default {
   props: [
@@ -91,7 +98,8 @@ export default {
     FoldersList,
     TagsList,
     NotesList,
-    NoteDetail
+    NoteDetail,
+    SearchBar
   },
   data: function() {
     return {
@@ -104,10 +112,21 @@ export default {
       noteDetail: false,
       selectedFolder: false,
       selectedTag: false,
-      selectedNote: false
+      selectedNote: false,
+      searchQuery: ''
     };
   },
   methods: {
+    search (query) {
+      this.searchQuery = query
+      let notesDb = new NotesDB()
+      notesDb.searchNotes(query).then(results => {
+        this.selectedFolder = false
+        this.selectedTag = false
+        this.notesList = results
+        this.noteDetail = false
+      })
+    },
     startSpinner() {
       // TODO: start spinner
     },
@@ -270,6 +289,7 @@ export default {
       this.selectedTag = false;
       this.selectedNote = false;
       this.noteDetail = false;
+      this.searchQuery = ''
       this.getNotesInFolder(folderName);
     },
     tagChangeHandler(tagHandle) {
@@ -277,6 +297,7 @@ export default {
       this.selectedTag = tagHandle;
       this.selectedNote = false;
       this.noteDetail = false;
+      this.searchQuery = ''
       this.getNotesWithTag(tagHandle);
     },
     noteChangeHandler(noteSlug) {
@@ -351,34 +372,72 @@ export default {
         return;
       }
 
-      let notePattern = /^#\/notes\/([^/]+)\/?$/;
+      let notePattern = /^#\/notes\/([^/]+)\/?/;
       let noteMatch = window.location.hash.match(notePattern);
       if (noteMatch) {
         let noteSlug = noteMatch[1];
 
+        let queryPattern = /\?query=([\w]+)/;
+        let queryMatch = window.location.hash.match(queryPattern);
+        let query = false;
+        if (queryMatch) {
+          query = queryMatch[1];
+        }
+
         let notesDb = new NotesDB();
         let receivedNetworkData = false;
 
-        // from idb
-        notesDb.getNoteDetail(noteSlug).then(noteDetail => {
-          if (!receivedNetworkData) {
-            this._noteDetailSuccessHandler(noteDetail);
-          }
-        });
+        if (query) {
+          this.searchQuery = query
+          notesDb.searchNotes(query).then(results => {
+            this.searchQuery = query
+            this.selectedFolder = false
+            this.notesList = results
 
-        // from network
-        axios
-          .get(`/notes/${noteSlug}`)
-          .then(response => {
-            receivedNetworkData = true;
-            // update idb with latest response
-            notesDb.addNoteDetail(response.data);
+            // from idb
+            notesDb.getNoteDetail(noteSlug).then(noteDetail => {
+              if (!receivedNetworkData) {
+                this.noteDetail = noteDetail    
+                this.selectedNote = noteDetail.slug
+                this.slideToMobilePanel("note-detail");
+              }
+            })
 
-            this._noteDetailSuccessHandler(response.data);
+            // from network
+            axios
+              .get(`/notes/${noteSlug}`)
+              .then(response => {
+                receivedNetworkData = true;
+                // update idb with latest response
+                notesDb.addNoteDetail(response.data);
+
+                this.noteDetail = response.data
+                this.selectedNote = this.noteDetail.slug
+                this.slideToMobilePanel("note-detail");
+              })
           })
-          .catch(err => {
-            console.log(` |- note-detail ${err}`);
+        } else {
+          // from idb
+          notesDb.getNoteDetail(noteSlug).then(noteDetail => {
+            if (!receivedNetworkData) {
+              this._noteDetailSuccessHandler(noteDetail);
+            }
           });
+  
+          // from network
+          axios
+            .get(`/notes/${noteSlug}`)
+            .then(response => {
+              receivedNetworkData = true;
+              // update idb with latest response
+              notesDb.addNoteDetail(response.data);
+  
+              this._noteDetailSuccessHandler(response.data);
+            })
+            .catch(err => {
+              console.log(` |- note-detail ${err}`);
+            });
+        }
       }
     },
     _noHashInit() {
@@ -480,6 +539,12 @@ export default {
     window.onhashchange = function() {
       _this.init();
     };
+
+    document.onkeyup = function (ev) {
+      if (ev.keyCode == 191) {
+        document.querySelector('#search-notes').focus()
+      }
+    }
   }
 };
 </script>
