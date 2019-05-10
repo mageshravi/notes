@@ -111,3 +111,4 @@ node_modules/
 
 # project specific
 notes/fixtures/tmp/
+*.private.env

@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 
 import os
 
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -196,3 +199,14 @@ LOGGING = {
 PUSH_NOTIFICATION_GROUPS = {
     'default': os.getenv('DJANGO_PUSH_NOTIFICATION_GROUP_DEFAULT', 'notes-app-public')
 }
+
+# sentry
+
+sentry_dsn = os.getenv('DJANGO_SENTRY_DSN')
+
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[DjangoIntegration()]
+    )
+# endif
