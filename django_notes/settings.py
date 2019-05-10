@@ -204,7 +204,9 @@ PUSH_NOTIFICATION_GROUPS = {
 
 sentry_dsn = os.getenv('DJANGO_SENTRY_DSN')
 
-sentry_sdk.init(
-    dsn=sentry_dsn,
-    integrations=[DjangoIntegration()]
-)
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[DjangoIntegration()]
+    )
+# endif
