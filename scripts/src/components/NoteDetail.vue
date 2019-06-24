@@ -56,6 +56,8 @@ export default {
 };
 </script>
 <style lang="scss">
+@import './scss/_theme.scss';
+
 .m-note-detail {
   $class-name: m-note-detail;
   padding: 12px 25px;
@@ -64,7 +66,14 @@ export default {
     text-decoration: none;
   }
 
-  code {
+  p code {
+    padding: 0 3px;
+    background-color: $inline-code-bg-color;
+    border-radius: 2px;
+    display: inline;
+  }
+
+  code.hljs {
     border-radius: 4px;
   }
 
